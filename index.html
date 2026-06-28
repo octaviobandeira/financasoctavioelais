@@ -230,12 +230,25 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 <div id="page-investimentos" class="page">
   <h1 class="page-title">📈 Investimentos</h1>
   <p class="page-subtitle" id="inv-subtitle"></p>
-  <div style="display:flex;gap:10px;margin-bottom:20px">
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
     <button class="btn btn-primary" onclick="abrirModalInv()">+ Novo Investimento</button>
+    <button class="btn btn-success" onclick="salvarSnapshotMes()">📸 Registrar Mês Atual</button>
   </div>
   <div class="grid3" id="inv-kpis"></div>
+  <!-- Variação do mês -->
+  <div id="inv-variacao-mes" style="margin-bottom:16px"></div>
+  <!-- Gráfico evolução real -->
+  <div class="card" style="margin-bottom:16px">
+    <h3>📊 Evolução Real da Carteira</h3>
+    <div class="chart-wrap" style="height:200px"><canvas id="chart-inv-evolucao"></canvas></div>
+  </div>
   <div class="grid2">
-    <div id="inv-lista"></div>
+    <!-- Tabela histórico mensal -->
+    <div class="card">
+      <h3>📅 Histórico Mensal</h3>
+      <div id="inv-historico-tabela"></div>
+    </div>
+    <!-- Reserva + Simulador -->
     <div>
       <div class="card" style="margin-bottom:16px"><h3>🎯 Reserva de Emergência</h3><div id="reserva-prog"></div></div>
       <div class="card">
@@ -244,10 +257,12 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
         <div class="form-group"><label>Anos</label><input type="number" id="sim-anos" placeholder="10" oninput="simularCrescimento()"></div>
         <div class="form-group"><label>Taxa a.a. (%)</label><input type="number" id="sim-taxa" placeholder="10" oninput="simularCrescimento()"></div>
         <div id="sim-resultado" style="margin-top:10px"></div>
-        <div class="chart-wrap" style="height:160px;margin-top:10px"><canvas id="chart-sim"></canvas></div>
+        <div class="chart-wrap" style="height:140px;margin-top:10px"><canvas id="chart-sim"></canvas></div>
       </div>
     </div>
   </div>
+  <!-- Lista de investimentos -->
+  <div id="inv-lista"></div>
 </div>
 <!-- PATRIMÔNIO -->
 <div id="page-patrimonio" class="page">
@@ -436,7 +451,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 
 <div class="modal-overlay" id="modal-inv"><div class="modal">
   <h3>📈 Cadastrar Investimento</h3>
-  <div class="form-group"><label>Nome</label><input type="text" id="inv-nome"></div>
+  <div class="form-group"><label>Nome</label><input type="text" id="inv-nome" placeholder="Ex: CDB Nubank, Tesouro Selic"></div>
   <div class="form-row">
     <div class="form-group"><label>Tipo</label>
       <select id="inv-tipo"><option>Renda Fixa</option><option>Renda Variável</option><option>FII</option><option>Ações</option><option>Cripto</option><option>Previdência</option><option>Tesouro Direto</option><option>LCI</option><option>LCA</option><option>Outro</option></select>
@@ -444,16 +459,8 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
     <div class="form-group"><label>Titular</label><select id="inv-titular"><option>Titular 1</option><option>Titular 2</option><option>Conjunto</option></select></div>
   </div>
   <div class="form-row">
-    <div class="form-group"><label>Valor Investido (R$)</label><input type="number" id="inv-invest" step="0.01"></div>
-    <div class="form-group"><label>Valor Atual (R$)</label><input type="number" id="inv-atual" step="0.01"></div>
-  </div>
-  <div class="form-row">
-    <div class="form-group"><label>Data Início</label><input type="date" id="inv-inicio"></div>
-    <div class="form-group"><label>Vencimento</label><input type="date" id="inv-venc"></div>
-  </div>
-  <div class="form-row">
-    <div class="form-group"><label>Rentabilidade (% a.a.)</label><input type="number" id="inv-rent" step="0.01"></div>
-    <div class="form-group"><label>Liquidez</label><select id="inv-liq"><option>Diária</option><option>D+1</option><option>No vencimento</option></select></div>
+    <div class="form-group"><label>Valor Investido (R$)</label><input type="number" id="inv-invest" step="0.01" placeholder="0,00"></div>
+    <div class="form-group"><label>Valor Atual (R$)</label><input type="number" id="inv-atual" step="0.01" placeholder="0,00"></div>
   </div>
   <div class="form-group"><label>Objetivo</label>
     <select id="inv-obj"><option>Reserva Emergência</option><option>Aposentadoria</option><option>Curto Prazo</option><option>Meta Específica</option></select>
@@ -1064,7 +1071,20 @@ function gerarConteudoStep(step){
     default:return'';
   }
 }
-function atualizarInvFechamento(id,val){let invs=getInvs(),i=invs.find(x=>x.id===id);if(i){i.atual=parseFloat(val)||0;setInvs(invs);}}
+function atualizarInvFechamento(id,val){
+  let invs=getInvs(),i=invs.find(x=>x.id===id);
+  if(i){i.atual=parseFloat(val)||0;setInvs(invs);}
+}
+function salvarInvsFechamento(){
+  let mk=mesK(currentAno,currentMes);
+  let total=calcTotalInvestido();
+  let snaps=getSnapshotsInv();
+  let jaExiste=snaps.find(s=>s.mes===mk);
+  if(jaExiste){jaExiste.total=total;jaExiste.investido=getInvs().reduce((s,i)=>s+(i.investido||0),0);}
+  else{snaps.push({mes:mk,total,investido:getInvs().reduce((s,i)=>s+(i.investido||0),0)});snaps.sort((a,b)=>a.mes.localeCompare(b.mes));}
+  setSnapshotsInv(snaps);
+  showToast('💾 Snapshot dos investimentos salvo automaticamente!');
+}
 function concluirFechamento(){
   let d=D();d.ultimoFechamento=mesK(currentAno,currentMes);SD(d);
   fechamentoStep=0;showToast(`✅ Fechamento de ${mesLabel(currentAno,currentMes)} concluído!`);renderFechamento();
@@ -1094,36 +1114,187 @@ function salvarLancamentoRapido(){
 }
 
 // ===== INVESTIMENTOS =====
+const getSnapshotsInv=()=>D().snapshotsInv||[];
+const setSnapshotsInv=v=>{let d=D();d.snapshotsInv=v;SD(d);};
+
+function salvarSnapshotMes(){
+  let mk=mesK(currentAno,currentMes);
+  let snaps=getSnapshotsInv();
+  let jaExiste=snaps.find(s=>s.mes===mk);
+  let total=calcTotalInvestido();
+  if(jaExiste){
+    confirmar(`Já existe um snapshot de ${mesLabel(currentAno,currentMes)} (${fmtBRL(jaExiste.total)}). Deseja sobrescrever com ${fmtBRL(total)}?`,()=>{
+      jaExiste.total=total;jaExiste.investido=getInvs().reduce((s,i)=>s+(i.investido||0),0);
+      setSnapshotsInv(snaps);renderInvestimentos();showToast('Snapshot atualizado!');
+    });
+  }else{
+    snaps.push({mes:mk,total,investido:getInvs().reduce((s,i)=>s+(i.investido||0),0)});
+    snaps.sort((a,b)=>a.mes.localeCompare(b.mes));
+    setSnapshotsInv(snaps);renderInvestimentos();showToast(`📸 Snapshot de ${mesLabel(currentAno,currentMes)} salvo!`);
+  }
+}
+
 function renderInvestimentos(){
   setSubtitle('inv-subtitle');
   let invs=getInvs();
-  let tInv=invs.reduce((s,i)=>s+(i.investido||0),0),tAtual=invs.reduce((s,i)=>s+(i.atual||i.investido||0),0),ganho=tAtual-tInv;
-  document.getElementById('inv-kpis').innerHTML=`<div class="kpi"><div class="label">Total Investido</div><div class="val">${fmtBRL(tInv)}</div></div><div class="kpi"><div class="label">Valor Atual</div><div class="val pos">${fmtBRL(tAtual)}</div></div><div class="kpi"><div class="label">Ganho Total</div><div class="val ${ganho>=0?'pos':'neg'}">${fmtBRL(ganho)}</div></div>`;
-  document.getElementById('inv-lista').innerHTML=`<div>${invs.map(i=>{let g=(i.atual||i.investido||0)-(i.investido||0);return`<div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div><div style="font-weight:600;font-size:14px">${i.nome}</div><div style="font-size:11px;color:#888">${i.tipo} · ${i.titular} · ${i.objetivo}</div></div><div style="display:flex;gap:6px"><button class="btn btn-sm btn-outline" onclick="editarInv('${i.id}')">✏️</button><button class="btn btn-sm btn-danger" onclick="excluirInv('${i.id}')">🗑️</button></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div><div style="font-size:10px;color:#888">Investido</div><div style="font-size:13px;font-weight:600">${fmtBRL(i.investido)}</div></div><div><div style="font-size:10px;color:#888">Atual</div><div style="font-size:13px;font-weight:600">${fmtBRL(i.atual||i.investido)}</div></div><div><div style="font-size:10px;color:#888">Ganho</div><div style="font-size:13px;font-weight:600;color:${g>=0?'var(--pos)':'var(--neg)'}">${fmtBRL(g)}</div></div></div></div>`;}).join('')||'<div class="card" style="text-align:center;padding:40px;color:#aaa">Nenhum investimento cadastrado</div>'}</div>`;
+  let tInv=invs.reduce((s,i)=>s+(i.investido||0),0);
+  let tAtual=invs.reduce((s,i)=>s+(i.atual||i.investido||0),0);
+  let ganho=tAtual-tInv;
+  let ganhoP=tInv>0?ganho/tInv*100:0;
+
+  // KPIs
+  document.getElementById('inv-kpis').innerHTML=`
+    <div class="kpi"><div class="label">Total Investido</div><div class="val">${fmtBRL(tInv)}</div></div>
+    <div class="kpi"><div class="label">Valor Atual</div><div class="val pos">${fmtBRL(tAtual)}</div></div>
+    <div class="kpi"><div class="label">Ganho Total</div><div class="val ${ganho>=0?'pos':'neg'}">${fmtBRL(ganho)} <span style="font-size:13px">(${fmtPct(ganhoP)})</span></div></div>
+  `;
+
+  // Variação do mês vs mês anterior
+  let snaps=getSnapshotsInv();
+  let mk=mesK(currentAno,currentMes);
+  let ant=mesAnt(currentAno,currentMes),antK=mesK(ant.a,ant.m);
+  let snapAtual=snaps.find(s=>s.mes===mk);
+  let snapAnt=snaps.find(s=>s.mes===antK);
+  let varEl=document.getElementById('inv-variacao-mes');
+  if(snapAtual&&snapAnt){
+    let varVal=snapAtual.total-snapAnt.total;
+    let varP=snapAnt.total>0?varVal/snapAnt.total*100:0;
+    varEl.innerHTML=`<div class="alert-box ${varVal>=0?'success':'danger'}" style="margin-bottom:0">
+      ${varVal>=0?'📈':'📉'} <strong>Variação em ${mesLabel(currentAno,currentMes)}:</strong>
+      ${varVal>=0?'+':''}${fmtBRL(varVal)} (${varVal>=0?'+':''}${fmtPct(varP)}) em relação a ${mesLabel(ant.a,ant.m)}
+    </div>`;
+  }else if(snapAtual){
+    varEl.innerHTML=`<div class="alert-box info" style="margin-bottom:0">📸 Snapshot de ${mesLabel(currentAno,currentMes)} registrado: <strong>${fmtBRL(snapAtual.total)}</strong>. Registre no próximo mês para ver a variação.</div>`;
+  }else{
+    varEl.innerHTML=`<div class="alert-box info" style="margin-bottom:0">💡 Clique em <strong>"📸 Registrar Mês Atual"</strong> após atualizar os valores para acompanhar a evolução mensal.</div>`;
+  }
+
+  // Gráfico evolução real (snapshots)
+  if(snaps.length>=2){
+    let ultimos=snaps.slice(-12);
+    let labels=ultimos.map(s=>{let[a,m]=s.mes.split('-').map(Number);return mesLabel(a,m);});
+    let vals=ultimos.map(s=>s.total);
+    let invVals=ultimos.map(s=>s.investido||0);
+    renderChart('chart-inv-evolucao','line',labels,[
+      {label:'Valor Atual',data:vals,borderColor:'var(--pos)',backgroundColor:'#27ae6020',fill:true,tension:.4},
+      {label:'Total Investido',data:invVals,borderColor:'#2980b9',backgroundColor:'transparent',borderDash:[5,5],tension:.4}
+    ]);
+  }else{
+    if(charts['chart-inv-evolucao'])charts['chart-inv-evolucao'].destroy();
+    let ctx=document.getElementById('chart-inv-evolucao');
+    if(ctx){let c=ctx.getContext('2d');c.clearRect(0,0,ctx.width,ctx.height);c.fillStyle='#aaa';c.font='13px Inter';c.textAlign='center';c.fillText('Registre ao menos 2 meses para ver o gráfico',ctx.width/2,ctx.height/2);}
+  }
+
+  // Tabela histórico mensal
+  let tabEl=document.getElementById('inv-historico-tabela');
+  if(snaps.length){
+    let ultSnaps=[...snaps].reverse().slice(0,12);
+    tabEl.innerHTML=`<table>
+      <thead><tr><th>Mês</th><th>Valor Atual</th><th>Aportado</th><th>Rendimento</th><th>Var. Mês</th></tr></thead>
+      <tbody>${ultSnaps.map((s,i)=>{
+        let prev=ultSnaps[i+1];
+        let varMes=prev?s.total-prev.total:null;
+        let varP=prev&&prev.total>0?varMes/prev.total*100:null;
+        let rend=s.total-(s.investido||0);
+        let [a,m]=s.mes.split('-').map(Number);
+        return`<tr>
+          <td style="font-weight:600">${mesLabel(a,m)}</td>
+          <td style="color:var(--pos);font-weight:600">${fmtBRL(s.total)}</td>
+          <td>${fmtBRL(s.investido||0)}</td>
+          <td style="color:${rend>=0?'var(--pos)':'var(--neg)'}">${fmtBRL(rend)}</td>
+          <td>${varMes!==null?`<span style="color:${varMes>=0?'var(--pos)':'var(--neg)'};font-weight:600">${varMes>=0?'+':''}${fmtBRL(varMes)} (${varMes>=0?'+':''}${fmtPct(varP)})</span>`:'<span style="color:#aaa">—</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  }else{
+    tabEl.innerHTML='<p style="color:#aaa;font-size:13px;text-align:center;padding:20px 0">Nenhum snapshot registrado ainda.</p>';
+  }
+
+  // Reserva de emergência
   let cfg=getConfig(),tDesp=calcFix(currentAno,currentMes)+calcVar(currentAno,currentMes)+calcFaturaTotal(currentAno,currentMes);
   let resIdeal=(cfg.metaRes||6)*tDesp,resAtual=invs.filter(i=>i.objetivo==='Reserva Emergência').reduce((s,i)=>s+(i.atual||i.investido||0),0);
   let mR=tDesp>0?resAtual/tDesp:0;
-  document.getElementById('reserva-prog').innerHTML=`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>${fmtBRL(resAtual)}</span><span style="color:#888">Meta: ${fmtBRL(resIdeal)}</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(resAtual/Math.max(resIdeal,1)*100,100)}%;background:${mR>=6?'var(--pos)':mR>=3?'var(--alert)':'var(--neg)'}"></div></div><div style="margin-top:8px;font-size:12px;color:#888">${mR.toFixed(1)} meses cobertos · Meta: ${cfg.metaRes||6} meses</div>`;
+  document.getElementById('reserva-prog').innerHTML=`
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>${fmtBRL(resAtual)}</span><span style="color:#888">Meta: ${fmtBRL(resIdeal)}</span></div>
+    <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(resAtual/Math.max(resIdeal,1)*100,100)}%;background:${mR>=6?'var(--pos)':mR>=3?'var(--alert)':'var(--neg)'}"></div></div>
+    <div style="margin-top:8px;font-size:12px;color:#888">${mR.toFixed(1)} meses cobertos · Meta: ${cfg.metaRes||6} meses</div>
+  `;
+
+  // Lista de investimentos (simplificada)
+  let tipoMap={};invs.forEach(i=>{let t=i.tipo;if(!tipoMap[t])tipoMap[t]=[];tipoMap[t].push(i);});
+  document.getElementById('inv-lista').innerHTML=`<div>${Object.entries(tipoMap).map(([tipo,lista])=>{
+    let totalTipo=lista.reduce((s,i)=>s+(i.atual||i.investido||0),0);
+    let pctCarteira=tAtual>0?totalTipo/tAtual*100:0;
+    return`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:700;font-size:14px">${tipo}</div>
+        <div style="text-align:right"><div style="font-weight:700;color:var(--pos)">${fmtBRL(totalTipo)}</div><div style="font-size:11px;color:#888">${fmtPct(pctCarteira)} da carteira</div></div>
+      </div>
+      <div class="progress-wrap" style="margin-bottom:10px"><div class="progress-bar" style="width:${pctCarteira}%;background:var(--accent)"></div></div>
+      ${lista.map(i=>{
+        let g=(i.atual||i.investido||0)-(i.investido||0);
+        let gP=i.investido>0?g/i.investido*100:0;
+        return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border)">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">${i.nome}</div>
+            <div style="font-size:11px;color:#888">${i.titular} · ${i.objetivo}</div>
+          </div>
+          <div style="text-align:right;min-width:120px">
+            <div style="font-weight:700">${fmtBRL(i.atual||i.investido)}</div>
+            <div style="font-size:11px;color:${g>=0?'var(--pos)':'var(--neg)'}">${g>=0?'+':''}${fmtBRL(g)} (${g>=0?'+':''}${fmtPct(gP)})</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button class="btn btn-sm btn-outline" onclick="editarInv('${i.id}')">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="excluirInv('${i.id}')">🗑️</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('')||'<div class="card" style="text-align:center;padding:40px;color:#aaa"><div style="font-size:40px;margin-bottom:12px">📈</div><p>Nenhum investimento cadastrado.</p><button class="btn btn-primary" style="margin-top:12px" onclick="abrirModalInv()">+ Cadastrar Investimento</button></div>'}</div>`;
 }
+
 function abrirModalInv(id=null){
   editInvId=id;
-  if(id){let i=getInvs().find(x=>x.id===id);if(!i)return;document.getElementById('inv-nome').value=i.nome;document.getElementById('inv-tipo').value=i.tipo;document.getElementById('inv-titular').value=i.titular;document.getElementById('inv-invest').value=i.investido;document.getElementById('inv-atual').value=i.atual||i.investido;document.getElementById('inv-inicio').value=i.inicio||'';document.getElementById('inv-venc').value=i.vencimento||'';document.getElementById('inv-rent').value=i.rentabilidade||'';document.getElementById('inv-liq').value=i.liquidez||'Diária';document.getElementById('inv-obj').value=i.objetivo||'Reserva Emergência';}
-  else{['inv-nome','inv-invest','inv-atual','inv-inicio','inv-venc','inv-rent'].forEach(f=>document.getElementById(f).value='');}
+  if(id){
+    let i=getInvs().find(x=>x.id===id);if(!i)return;
+    document.getElementById('inv-nome').value=i.nome;
+    document.getElementById('inv-tipo').value=i.tipo;
+    document.getElementById('inv-titular').value=i.titular;
+    document.getElementById('inv-invest').value=i.investido;
+    document.getElementById('inv-atual').value=i.atual||i.investido;
+    document.getElementById('inv-obj').value=i.objetivo||'Reserva Emergência';
+  }else{
+    ['inv-nome','inv-invest','inv-atual'].forEach(f=>document.getElementById(f).value='');
+  }
   abrirModal('modal-inv');
 }
 function editarInv(id){abrirModalInv(id);}
 function salvarInv(){
   let nome=document.getElementById('inv-nome').value.trim();if(!nome)return alert('Informe o nome');
-  let obj={id:editInvId||geraId(),nome,tipo:document.getElementById('inv-tipo').value,titular:document.getElementById('inv-titular').value,investido:parseFloat(document.getElementById('inv-invest').value)||0,atual:parseFloat(document.getElementById('inv-atual').value)||0,inicio:document.getElementById('inv-inicio').value,vencimento:document.getElementById('inv-venc').value,rentabilidade:parseFloat(document.getElementById('inv-rent').value)||0,liquidez:document.getElementById('inv-liq').value,objetivo:document.getElementById('inv-obj').value};
-  let invs=getInvs();if(editInvId){let idx=invs.findIndex(i=>i.id===editInvId);if(idx>=0)invs[idx]=obj;}else invs.push(obj);
-  setInvs(invs);fecharModal('modal-inv');renderInvestimentos();
+  let obj={
+    id:editInvId||geraId(),
+    nome,
+    tipo:document.getElementById('inv-tipo').value,
+    titular:document.getElementById('inv-titular').value,
+    investido:parseFloat(document.getElementById('inv-invest').value)||0,
+    atual:parseFloat(document.getElementById('inv-atual').value)||0,
+    objetivo:document.getElementById('inv-obj').value
+  };
+  let invs=getInvs();
+  if(editInvId){let idx=invs.findIndex(i=>i.id===editInvId);if(idx>=0)invs[idx]=obj;}
+  else invs.push(obj);
+  setInvs(invs);fecharModal('modal-inv');renderInvestimentos();showToast('Investimento salvo!');
 }
 function excluirInv(id){confirmar('Excluir investimento?',()=>{setInvs(getInvs().filter(i=>i.id!==id));renderInvestimentos();});}
 function simularCrescimento(){
   let aporte=parseFloat(document.getElementById('sim-aporte').value)||0,anos=parseFloat(document.getElementById('sim-anos').value)||10,taxa=parseFloat(document.getElementById('sim-taxa').value)||10;
   if(!aporte||!anos)return;
   let tm=taxa/100/12,m2=anos*12,total=aporte*((Math.pow(1+tm,m2)-1)/tm),aportado=aporte*m2;
-  document.getElementById('sim-resultado').innerHTML=`<div style="display:flex;gap:12px;flex-wrap:wrap"><div><div style="font-size:11px;color:#888">Total Acumulado</div><div style="font-size:18px;font-weight:700;color:var(--pos)">${fmtBRL(total)}</div></div><div><div style="font-size:11px;color:#888">Aportado</div><div style="font-size:15px;font-weight:600">${fmtBRL(aportado)}</div></div><div><div style="font-size:11px;color:#888">Juros</div><div style="font-size:15px;font-weight:600;color:var(--accent)">${fmtBRL(total-aportado)}</div></div></div>`;
+  document.getElementById('sim-resultado').innerHTML=`<div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div><div style="font-size:11px;color:#888">Total Acumulado</div><div style="font-size:18px;font-weight:700;color:var(--pos)">${fmtBRL(total)}</div></div>
+    <div><div style="font-size:11px;color:#888">Aportado</div><div style="font-size:15px;font-weight:600">${fmtBRL(aportado)}</div></div>
+    <div><div style="font-size:11px;color:#888">Juros</div><div style="font-size:15px;font-weight:600;color:var(--accent)">${fmtBRL(total-aportado)}</div></div>
+  </div>`;
   let labels=[],vals=[];for(let a=1;a<=anos;a++){labels.push(a+'a');vals.push(aporte*((Math.pow(1+tm,a*12)-1)/tm));}
   renderChart('chart-sim','line',labels,[{label:'Projeção',data:vals,borderColor:'var(--pos)',backgroundColor:'#27ae6020',fill:true,tension:.4}]);
 }
