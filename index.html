@@ -6,6 +6,9 @@
 <title>Finanças do Casal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#F0F4F8;--sidebar:#1A2B4A;--pos:#27AE60;--neg:#E74C3C;--alert:#F39C12;--accent:#2980B9;--text:#2C3E50;--card:#fff;--border:#e0e8f0;--radius:12px}
@@ -137,6 +140,10 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
       <span id="mes-label">—</span>
       <button onclick="navMes(1)">›</button>
     </div>
+  </div>
+  <div id="sync-status" style="padding:10px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.6)">
+    <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:.3s"></div>
+    <span id="sync-label">Conectando...</span>
   </div>
 </div>
 
@@ -555,6 +562,57 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 </div></div>
 
 <script>
+// ===== FIREBASE =====
+const firebaseConfig={
+  apiKey:"AIzaSyB0mh5fy9U-wPzUg6cCXvyxYyeP0d716rs",
+  authDomain:"financas-casal-9663e.firebaseapp.com",
+  databaseURL:"https://financas-casal-9663e-default-rtdb.firebaseio.com",
+  projectId:"financas-casal-9663e",
+  storageBucket:"financas-casal-9663e.firebasestorage.app",
+  messagingSenderId:"91259237474",
+  appId:"1:91259237474:web:0c8ebd64b1031831968d3b"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const REF=db.ref('financas');
+let appData={};
+let syncTimeout=null;
+
+function setSyncStatus(status,label){
+  const dot=document.getElementById('sync-dot');
+  const lbl=document.getElementById('sync-label');
+  const colors={online:'#27AE60',syncing:'#F39C12',offline:'#E74C3C'};
+  dot.style.background=colors[status]||'#aaa';
+  dot.style.animation=status==='syncing'?'pulse .8s infinite':'none';
+  lbl.textContent=label;
+}
+
+function initFirebase(){
+  setSyncStatus('syncing','Conectando...');
+  REF.on('value',snap=>{
+    appData=snap.val()||{};
+    setSyncStatus('online','Sincronizado ✓');
+    renderPage(currentPage);
+    atualizarTitulares();
+  },err=>{
+    setSyncStatus('offline','Sem conexão');
+    console.error(err);
+  });
+  db.ref('.info/connected').on('value',snap=>{
+    setSyncStatus(snap.val()?'online':'offline',snap.val()?'Sincronizado ✓':'Sem conexão');
+  });
+}
+
+function saveDB(path,value){
+  setSyncStatus('syncing','Salvando...');
+  clearTimeout(syncTimeout);
+  syncTimeout=setTimeout(()=>{
+    REF.child(path).set(value)
+      .then(()=>setSyncStatus('online','Sincronizado ✓'))
+      .catch(e=>{setSyncStatus('offline','Erro ao salvar');console.error(e);});
+  },500);
+}
+
 // ===== CONSTANTES =====
 const CATEGORIAS=['Alimentação','Supermercado','Restaurante/Delivery','Saúde/Farmácia','Transporte/Combustível','Lazer/Entretenimento','Vestuário','Educação','Casa/Manutenção','Streaming/Assinatura','Viagem','Transferência','Saque','Pagamento de Fatura','Investimento','Salário','Renda Extra','Outros'];
 const CATS_CORES={'Alimentação':'#27ae60','Supermercado':'#2ecc71','Restaurante/Delivery':'#e67e22','Saúde/Farmácia':'#e74c3c','Transporte/Combustível':'#8e44ad','Lazer/Entretenimento':'#3498db','Vestuário':'#f39c12','Educação':'#1abc9c','Casa/Manutenção':'#95a5a6','Streaming/Assinatura':'#9b59b6','Viagem':'#16a085','Transferência':'#7f8c8d','Saque':'#c0392b','Pagamento de Fatura':'#2980b9','Investimento':'#27ae60','Salário':'#2ecc71','Renda Extra':'#f1c40f','Outros':'#bdc3c7'};
@@ -1473,13 +1531,12 @@ function showToast(msg,dur=3000){
 
 // ===== INIT =====
 document.getElementById('mes-label').textContent=mesLabel(currentAno,currentMes);
-let _cfg=getConfig();
-document.getElementById('titulares-label').textContent=`${_cfg.t1||'Titular 1'} & ${_cfg.t2||'Titular 2'}`;
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 document.addEventListener('click',e=>{
   if(formRapidoAberto&&!document.getElementById('lancamento-rapido').contains(e.target))toggleFormRapido();
 });
-renderDashboard();
+// Inicia Firebase e aguarda dados antes de renderizar
+initFirebase();
 </script>
 </body>
 </html>
