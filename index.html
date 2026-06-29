@@ -96,11 +96,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 .step-dots{display:flex;gap:8px;margin-bottom:20px;justify-content:center}
 .step-dot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:.3s}
 .step-dot.active{background:var(--accent)}.step-dot.done{background:var(--pos)}
-#lancamento-rapido{position:fixed;bottom:24px;right:24px;z-index:500}
-#btn-rapido{width:54px;height:54px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(41,128,185,.4);transition:.2s}
-#btn-rapido:hover{transform:scale(1.08)}
-#form-rapido{display:none;position:fixed;bottom:90px;right:24px;background:#fff;border-radius:var(--radius);padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:500}
-#form-rapido h4{font-size:14px;font-weight:700;margin-bottom:14px}
+
 @media(max-width:768px){
 #sidebar{transform:translateX(-100%)}
 #sidebar.open{transform:translateX(0)}
@@ -375,21 +371,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 </div>
 </div>
 
-<!-- LANÇAMENTO RÁPIDO -->
-<div id="lancamento-rapido">
-  <div id="form-rapido">
-    <h4>⚡ Lançamento Rápido</h4>
-    <div class="form-group"><label>Valor (R$)</label><input type="number" id="lr-valor" step="0.01" placeholder="0,00"></div>
-    <div class="form-group"><label>Descrição</label><input type="text" id="lr-desc" placeholder="Ex: Padaria"></div>
-    <div class="form-group"><label>Categoria</label><select id="lr-cat"></select></div>
-    <div class="form-group"><label>Onde?</label><select id="lr-onde"><option value="despesa">Despesa da Casa</option></select></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-success" style="flex:1" onclick="salvarLancamentoRapido()">✅ Salvar</button>
-      <button class="btn btn-outline" onclick="toggleFormRapido()">✕</button>
-    </div>
-  </div>
-  <button id="btn-rapido" onclick="toggleFormRapido()" title="Lançamento Rápido">⚡</button>
-</div>
+
 
 <!-- MODAIS -->
 <div class="modal-overlay" id="modal-cartao"><div class="modal">
@@ -589,28 +571,42 @@ function setSyncStatus(status,label){
 
 function initFirebase(){
   setSyncStatus('syncing','Conectando...');
+  // Escuta mudanças em tempo real — rerenderiza a página atual sempre que dados mudarem
   REF.on('value',snap=>{
     appData=snap.val()||{};
     setSyncStatus('online','Sincronizado ✓');
-    renderPage(currentPage);
+    // Atualiza titulares
     atualizarTitulares();
+    // Rerenderiza a página atual com os dados atualizados
+    renderPage(currentPage);
   },err=>{
     setSyncStatus('offline','Sem conexão');
-    console.error(err);
+    console.error('Firebase erro:',err);
   });
+  // Monitor de conexão
   db.ref('.info/connected').on('value',snap=>{
-    setSyncStatus(snap.val()?'online':'offline',snap.val()?'Sincronizado ✓':'Sem conexão');
+    if(snap.val()===false){
+      setSyncStatus('offline','Sem conexão');
+    }
   });
 }
 
 function saveDB(path,value){
   setSyncStatus('syncing','Salvando...');
-  clearTimeout(syncTimeout);
-  syncTimeout=setTimeout(()=>{
-    REF.child(path).set(value)
-      .then(()=>setSyncStatus('online','Sincronizado ✓'))
-      .catch(e=>{setSyncStatus('offline','Erro ao salvar');console.error(e);});
-  },500);
+  // Sanitiza o valor removendo undefined
+  const clean=JSON.parse(JSON.stringify(value===undefined?null:value));
+  REF.child(path).set(clean)
+    .then(()=>setSyncStatus('online','Sincronizado ✓'))
+    .catch(e=>{setSyncStatus('offline','Erro: '+e.message);console.error('saveDB erro:',path,e);});
+}
+
+// Salva objeto inteiro no Firebase (usado para operações complexas)
+function saveDBFull(){
+  setSyncStatus('syncing','Salvando...');
+  const clean=JSON.parse(JSON.stringify(appData));
+  REF.set(clean)
+    .then(()=>setSyncStatus('online','Sincronizado ✓'))
+    .catch(e=>{setSyncStatus('offline','Erro: '+e.message);console.error(e);});
 }
 
 // ===== CONSTANTES =====
@@ -621,7 +617,7 @@ const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','
 
 // ===== ESTADO =====
 let currentPage='dashboard', currentMes=new Date().getMonth()+1, currentAno=new Date().getFullYear();
-let charts={}, editInvId=null, editDespesaId=null, fechamentoStep=0, formRapidoAberto=false;
+let charts={}, editInvId=null, editDespesaId=null, fechamentoStep=0;
 
 // ===== LOCALSTORAGE =====
 const LS_KEY='fd';
@@ -1148,28 +1144,7 @@ function concluirFechamento(){
   fechamentoStep=0;showToast(`✅ Fechamento de ${mesLabel(currentAno,currentMes)} concluído!`);renderFechamento();
 }
 
-// ===== LANÇAMENTO RÁPIDO =====
-function toggleFormRapido(){
-  formRapidoAberto=!formRapidoAberto;
-  let el=document.getElementById('form-rapido');el.style.display=formRapidoAberto?'block':'none';
-  if(formRapidoAberto){
-    document.getElementById('lr-cat').innerHTML=CATEGORIAS.map(c=>`<option>${c}</option>`).join('');
-    let opts='<option value="despesa">Despesa da Casa</option>';
-    getCartoes().forEach(c=>{opts+=`<option value="cartao-${c.id}">${c.nome} (Cartão)</option>`;});
-    document.getElementById('lr-onde').innerHTML=opts;
-    document.getElementById('lr-valor').focus();
-  }
-}
-function salvarLancamentoRapido(){
-  let valor=parseFloat(document.getElementById('lr-valor').value)||0,desc=document.getElementById('lr-desc').value.trim();
-  let cat=document.getElementById('lr-cat').value,onde=document.getElementById('lr-onde').value;
-  if(!valor||!desc)return alert('Preencha valor e descrição');
-  let data=new Date().toISOString().split('T')[0];
-  if(onde==='despesa'){let d=getDespesas();d.push({id:geraId(),data,descricao:desc,categoria:cat,responsavel:'Casal',forma:'PIX',valor,status:'Pago',recorrente:false,mes:mesK(currentAno,currentMes)});setDespesas(d);}
-  else{let cartId=onde.replace('cartao-',''),cartoes=getCartoes(),c=cartoes.find(x=>x.id===cartId);if(c){c.lancamentos.push({id:geraId(),data:data.split('-').reverse().join('/'),desc,categoria:cat,valor,valorParcela:valor,parcela:1,totalParcelas:1,mesRef:mesK(currentAno,currentMes),pago:false,recorrente:false});setCartoes(cartoes);}}
-  document.getElementById('lr-valor').value='';document.getElementById('lr-desc').value='';
-  toggleFormRapido();showToast('⚡ Lançamento salvo!');
-}
+
 
 // ===== INVESTIMENTOS =====
 const getSnapshotsInv=()=>D().snapshotsInv||[];
@@ -1532,9 +1507,6 @@ function showToast(msg,dur=3000){
 // ===== INIT =====
 document.getElementById('mes-label').textContent=mesLabel(currentAno,currentMes);
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
-document.addEventListener('click',e=>{
-  if(formRapidoAberto&&!document.getElementById('lancamento-rapido').contains(e.target))toggleFormRapido();
-});
 // Inicia Firebase e aguarda dados antes de renderizar
 initFirebase();
 </script>
