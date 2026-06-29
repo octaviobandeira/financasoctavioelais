@@ -9,6 +9,7 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#F0F4F8;--sidebar:#1A2B4A;--pos:#27AE60;--neg:#E74C3C;--alert:#F39C12;--accent:#2980B9;--text:#2C3E50;--card:#fff;--border:#e0e8f0;--radius:12px}
@@ -110,6 +111,28 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 </style>
 </head>
 <body>
+<!-- TELA DE LOGIN -->
+<div id="login-screen">
+  <div id="login-box">
+    <div class="login-icon">💑</div>
+    <h2>Finanças do Casal</h2>
+    <p>Faça login para acessar</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')fazerLogin()">
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()">
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="fazerLogin()" id="btn-login">
+      Entrar
+    </button>
+    <div id="login-error">⚠️ Email ou senha incorretos. Tente novamente.</div>
+  </div>
+  <div id="login-version">Finanças do Casal v6</div>
+</div>
+
 <button id="hamburger" onclick="toggleSidebar()">☰</button>
 <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 <div id="sidebar">
@@ -137,10 +160,13 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
       <button onclick="navMes(1)">›</button>
     </div>
   </div>
-  <div id="sync-status" style="padding:10px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.6)">
-    <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:.3s"></div>
-    <span id="sync-label">Conectando...</span>
-  </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid rgba(255,255,255,.1)">
+          <div id="sync-status" style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.6)">
+            <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:.3s"></div>
+            <span id="sync-label">Conectando...</span>
+          </div>
+          <button onclick="fazerLogout()" title="Sair" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;padding:0">⎋</button>
+        </div>
 </div>
 
 <div id="main">
@@ -556,37 +582,70 @@ const firebaseConfig={
 };
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
+const auth=firebase.auth();
 const REF=db.ref('financas');
 let appData={};
 let syncTimeout=null;
+
+// ===== LOGIN / LOGOUT =====
+function fazerLogin(){
+  let email=document.getElementById('login-email').value.trim();
+  let senha=document.getElementById('login-senha').value;
+  let err=document.getElementById('login-error');
+  let btn=document.getElementById('btn-login');
+  if(!email||!senha){err.textContent='⚠️ Preencha email e senha.';err.style.display='block';return;}
+  btn.textContent='Entrando...';btn.disabled=true;err.style.display='none';
+  auth.signInWithEmailAndPassword(email,senha)
+    .catch(e=>{
+      err.textContent='⚠️ Email ou senha incorretos.';
+      err.style.display='block';
+      btn.textContent='Entrar';btn.disabled=false;
+    });
+}
+function fazerLogout(){
+  confirmar('Deseja sair do app?',()=>{
+    auth.signOut().then(()=>{
+      appData={};
+      document.getElementById('login-screen').style.display='flex';
+      document.getElementById('login-email').value='';
+      document.getElementById('login-senha').value='';
+    });
+  });
+}
 
 function setSyncStatus(status,label){
   const dot=document.getElementById('sync-dot');
   const lbl=document.getElementById('sync-label');
   const colors={online:'#27AE60',syncing:'#F39C12',offline:'#E74C3C'};
   dot.style.background=colors[status]||'#aaa';
-  dot.style.animation=status==='syncing'?'pulse .8s infinite':'none';
   lbl.textContent=label;
 }
 
 function initFirebase(){
-  setSyncStatus('syncing','Conectando...');
-  // Escuta mudanças em tempo real — rerenderiza a página atual sempre que dados mudarem
-  REF.on('value',snap=>{
-    appData=snap.val()||{};
-    setSyncStatus('online','Sincronizado ✓');
-    // Atualiza titulares
-    atualizarTitulares();
-    // Rerenderiza a página atual com os dados atualizados
-    renderPage(currentPage);
-  },err=>{
-    setSyncStatus('offline','Sem conexão');
-    console.error('Firebase erro:',err);
-  });
-  // Monitor de conexão
-  db.ref('.info/connected').on('value',snap=>{
-    if(snap.val()===false){
-      setSyncStatus('offline','Sem conexão');
+  // Observa estado de autenticação
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      // Usuário logado — esconde login e carrega dados
+      document.getElementById('login-screen').style.display='none';
+      setSyncStatus('syncing','Conectando...');
+      REF.on('value',snap=>{
+        appData=snap.val()||{};
+        setSyncStatus('online','Sincronizado ✓');
+        atualizarTitulares();
+        renderPage(currentPage);
+      },err=>{
+        setSyncStatus('offline','Sem conexão');
+        console.error('Firebase erro:',err);
+      });
+      db.ref('.info/connected').on('value',snap=>{
+        if(snap.val()===false)setSyncStatus('offline','Sem conexão');
+      });
+    }else{
+      // Não logado — mostra tela de login
+      REF.off(); // para de escutar o banco
+      document.getElementById('login-screen').style.display='flex';
+      document.getElementById('btn-login').textContent='Entrar';
+      document.getElementById('btn-login').disabled=false;
     }
   });
 }
