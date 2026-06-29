@@ -9,7 +9,6 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#F0F4F8;--sidebar:#1A2B4A;--pos:#27AE60;--neg:#E74C3C;--alert:#F39C12;--accent:#2980B9;--text:#2C3E50;--card:#fff;--border:#e0e8f0;--radius:12px}
@@ -111,27 +110,6 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 </style>
 </head>
 <body>
-<!-- TELA DE LOGIN -->
-<div id="login-screen">
-  <div id="login-box">
-    <div class="login-icon">💑</div>
-    <h2>Finanças do Casal</h2>
-    <p>Faça login para acessar</p>
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" id="login-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')fazerLogin()">
-    </div>
-    <div class="form-group">
-      <label>Senha</label>
-      <input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()">
-    </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="fazerLogin()" id="btn-login">
-      Entrar
-    </button>
-    <div id="login-error">⚠️ Email ou senha incorretos. Tente novamente.</div>
-  </div>
-  <div id="login-version">Finanças do Casal v6</div>
-</div>
 
 <button id="hamburger" onclick="toggleSidebar()">☰</button>
 <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
@@ -165,7 +143,6 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
             <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:.3s"></div>
             <span id="sync-label">Conectando...</span>
           </div>
-          <button onclick="fazerLogout()" title="Sair" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;padding:0">⎋</button>
         </div>
 </div>
 
@@ -582,36 +559,9 @@ const firebaseConfig={
 };
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
-const auth=firebase.auth();
 const REF=db.ref('financas');
 let appData={};
 let syncTimeout=null;
-
-// ===== LOGIN / LOGOUT =====
-function fazerLogin(){
-  let email=document.getElementById('login-email').value.trim();
-  let senha=document.getElementById('login-senha').value;
-  let err=document.getElementById('login-error');
-  let btn=document.getElementById('btn-login');
-  if(!email||!senha){err.textContent='⚠️ Preencha email e senha.';err.style.display='block';return;}
-  btn.textContent='Entrando...';btn.disabled=true;err.style.display='none';
-  auth.signInWithEmailAndPassword(email,senha)
-    .catch(e=>{
-      err.textContent='⚠️ Email ou senha incorretos.';
-      err.style.display='block';
-      btn.textContent='Entrar';btn.disabled=false;
-    });
-}
-function fazerLogout(){
-  confirmar('Deseja sair do app?',()=>{
-    auth.signOut().then(()=>{
-      appData={};
-      document.getElementById('login-screen').style.display='flex';
-      document.getElementById('login-email').value='';
-      document.getElementById('login-senha').value='';
-    });
-  });
-}
 
 function setSyncStatus(status,label){
   const dot=document.getElementById('sync-dot');
@@ -622,31 +572,18 @@ function setSyncStatus(status,label){
 }
 
 function initFirebase(){
-  // Observa estado de autenticação
-  auth.onAuthStateChanged(user=>{
-    if(user){
-      // Usuário logado — esconde login e carrega dados
-      document.getElementById('login-screen').style.display='none';
-      setSyncStatus('syncing','Conectando...');
-      REF.on('value',snap=>{
-        appData=snap.val()||{};
-        setSyncStatus('online','Sincronizado ✓');
-        atualizarTitulares();
-        renderPage(currentPage);
-      },err=>{
-        setSyncStatus('offline','Sem conexão');
-        console.error('Firebase erro:',err);
-      });
-      db.ref('.info/connected').on('value',snap=>{
-        if(snap.val()===false)setSyncStatus('offline','Sem conexão');
-      });
-    }else{
-      // Não logado — mostra tela de login
-      REF.off(); // para de escutar o banco
-      document.getElementById('login-screen').style.display='flex';
-      document.getElementById('btn-login').textContent='Entrar';
-      document.getElementById('btn-login').disabled=false;
-    }
+  setSyncStatus('syncing','Conectando...');
+  REF.on('value',snap=>{
+    appData=snap.val()||{};
+    setSyncStatus('online','Sincronizado ✓');
+    atualizarTitulares();
+    renderPage(currentPage);
+  },err=>{
+    setSyncStatus('offline','Sem conexão');
+    console.error('Firebase erro:',err);
+  });
+  db.ref('.info/connected').on('value',snap=>{
+    if(snap.val()===false)setSyncStatus('offline','Sem conexão');
   });
 }
 
@@ -678,30 +615,34 @@ const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','
 let currentPage='dashboard', currentMes=new Date().getMonth()+1, currentAno=new Date().getFullYear();
 let charts={}, editInvId=null, editDespesaId=null, fechamentoStep=0;
 
-// ===== LOCALSTORAGE =====
-const LS_KEY='fd';
-const D=()=>JSON.parse(localStorage.getItem(LS_KEY)||'{}');
-const SD=d=>localStorage.setItem(LS_KEY,JSON.stringify(d));
-const getConfig=()=>{let d=D();return d.config||{t1:'Titular 1',t2:'Titular 2',metaPoup:2000,metaRes:6};};
-const getMes=(a,m)=>{let d=D();return d.meses?.[`${a}-${mp(m)}`]||{receitas:[],fixas:[],variaveis:[]};};
-const setMes=(a,m,v)=>{let d=D();(d.meses=d.meses||{})[`${a}-${mp(m)}`]=v;SD(d);};
-const getCartoes=()=>D().cartoes||[];
-const setCartoes=v=>{let d=D();d.cartoes=v;SD(d);};
-const getInvs=()=>D().investimentos||[];
-const setInvs=v=>{let d=D();d.investimentos=v;SD(d);};
-const getAtivos=()=>D().ativos||[];
-const setAtivos=v=>{let d=D();d.ativos=v;SD(d);};
-const getPassivos=()=>D().passivos||[];
-const setPassivos=v=>{let d=D();d.passivos=v;SD(d);};
-const getDespesas=()=>D().despesas||[];
-const setDespesas=v=>{let d=D();d.despesas=v;SD(d);};
-const getMetas=()=>D().metas||[];
-const setMetas=v=>{let d=D();d.metas=v;SD(d);};
-const getRegras=()=>D().regras||[];
-const setRegras=v=>{let d=D();d.regras=v;SD(d);};
-const getOrcamentos=()=>D().orcamentos||{};
-const setOrcamentos=v=>{let d=D();d.orcamentos=v;SD(d);};
-const getCatsFixas=()=>new Set(D().catsFixas||CATS_FIXAS_DEFAULT);
+// ===== FIREBASE DATA ACCESSORS =====
+// appData é a fonte de verdade — carregado do Firebase Realtime Database.
+// SD() persiste no Firebase; D() lê de appData (em memória).
+const D=()=>appData;
+const SD=d=>{appData=d;saveDBFull();};
+
+const getConfig=()=>appData.config||{t1:'Titular 1',t2:'Titular 2',metaPoup:2000,metaRes:6};
+const getMes=(a,m)=>appData.meses?.[`${a}-${mp(m)}`]||{receitas:[],fixas:[],variaveis:[]};
+const setMes=(a,m,v)=>{appData.meses=appData.meses||{};appData.meses[`${a}-${mp(m)}`]=v;saveDB(`meses/${a}-${mp(m)}`,v);};
+const getCartoes=()=>appData.cartoes||[];
+const setCartoes=v=>{appData.cartoes=v;saveDB('cartoes',v);};
+const getInvs=()=>appData.investimentos||[];
+const setInvs=v=>{appData.investimentos=v;saveDB('investimentos',v);};
+const getAtivos=()=>appData.ativos||[];
+const setAtivos=v=>{appData.ativos=v;saveDB('ativos',v);};
+const getPassivos=()=>appData.passivos||[];
+const setPassivos=v=>{appData.passivos=v;saveDB('passivos',v);};
+const getDespesas=()=>appData.despesas||[];
+const setDespesas=v=>{appData.despesas=v;saveDB('despesas',v);};
+const getMetas=()=>appData.metas||[];
+const setMetas=v=>{appData.metas=v;saveDB('metas',v);};
+const getRegras=()=>appData.regras||[];
+const setRegras=v=>{appData.regras=v;saveDB('regras',v);};
+const getOrcamentos=()=>appData.orcamentos||{};
+const setOrcamentos=v=>{appData.orcamentos=v;saveDB('orcamentos',v);};
+const getCatsFixas=()=>new Set(appData.catsFixas||CATS_FIXAS_DEFAULT);
+const getSnapshotsInv=()=>appData.snapshotsInv||[];
+const setSnapshotsInv=v=>{appData.snapshotsInv=v;saveDB('snapshotsInv',v);};
 
 // ===== UTILS =====
 const fmtBRL=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -1068,7 +1009,7 @@ function adicionarRegra(){
 function excluirRegra(id){setRegras(getRegras().filter(r=>r.id!==id));renderRegras();}
 function verificarRecorrentesCartao(){
   let mk=mesK(currentAno,currentMes),ant=mesAnt(currentAno,currentMes),antK=mesK(ant.a,ant.m);
-  let d=D();if(d.recVerificado===mk)return;
+  if(appData.recVerificado===mk)return;
   let recorrentes=[];
   getCartoes().forEach(c=>{
     (c.lancamentos||[]).filter(l=>l.recorrente&&l.mesRef===antK).forEach(l=>{
@@ -1076,7 +1017,7 @@ function verificarRecorrentesCartao(){
       if(!jaExiste)recorrentes.push({...l,cartaoId:c.id,cartaoNome:c.nome});
     });
   });
-  if(!recorrentes.length){let dd=D();dd.recVerificado=mk;SD(dd);return;}
+  if(!recorrentes.length){appData.recVerificado=mk;saveDB('recVerificado',mk);return;}
   document.getElementById('rec-mes-label').textContent=mesLabel(currentAno,currentMes);
   document.getElementById('recorrentes-lista').innerHTML=recorrentes.map((l,i)=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
@@ -1094,7 +1035,7 @@ function confirmarRecorrentes(){
     let c=cartoes.find(x=>x.id===l.cartaoId);if(!c)return;
     c.lancamentos.push({id:geraId(),data:data.split('-').reverse().join('/'),desc:l.desc,categoria:l.categoria,valor:l.valor,valorParcela:l.valorParcela||l.valor,parcela:1,totalParcelas:1,mesRef:mk,pago:false,recorrente:true});
   });
-  setCartoes(cartoes);let dd=D();dd.recVerificado=mk;SD(dd);
+  setCartoes(cartoes);appData.recVerificado=mk;saveDB('recVerificado',mk);
   fecharModal('modal-recorrentes');showToast('Recorrentes adicionados!');renderCartoes();
 }
 
@@ -1199,15 +1140,14 @@ function salvarInvsFechamento(){
   showToast('💾 Snapshot dos investimentos salvo automaticamente!');
 }
 function concluirFechamento(){
-  let d=D();d.ultimoFechamento=mesK(currentAno,currentMes);SD(d);
+  appData.ultimoFechamento=mesK(currentAno,currentMes);
+  saveDB('ultimoFechamento',appData.ultimoFechamento);
   fechamentoStep=0;showToast(`✅ Fechamento de ${mesLabel(currentAno,currentMes)} concluído!`);renderFechamento();
 }
 
 
 
 // ===== INVESTIMENTOS =====
-const getSnapshotsInv=()=>D().snapshotsInv||[];
-const setSnapshotsInv=v=>{let d=D();d.snapshotsInv=v;SD(d);};
 
 function salvarSnapshotMes(){
   let mk=mesK(currentAno,currentMes);
@@ -1524,32 +1464,40 @@ function renderConfig(){
 }
 function salvarCatsFixas(){
   let sel=CATEGORIAS.filter(c=>document.getElementById('cf-'+c.replace(/\//g,'-'))?.checked);
-  let d=D();d.catsFixas=sel;SD(d);showToast('Categorias salvas!');
+  appData.catsFixas=sel;saveDB('catsFixas',sel);showToast('Categorias salvas!');
 }
 function salvarConfig(){
-  let d=D();(d.config=d.config||{}).t1=document.getElementById('cfg-t1').value;
-  d.config.t2=document.getElementById('cfg-t2').value;
-  d.config.metaPoup=parseFloat(document.getElementById('cfg-meta-poup').value)||0;
-  d.config.metaRes=parseFloat(document.getElementById('cfg-meta-res').value)||6;
-  SD(d);
-  document.getElementById('titulares-label').textContent=`${d.config.t1||'T1'} & ${d.config.t2||'T2'}`;
+  appData.config=appData.config||{};
+  appData.config.t1=document.getElementById('cfg-t1').value;
+  appData.config.t2=document.getElementById('cfg-t2').value;
+  appData.config.metaPoup=parseFloat(document.getElementById('cfg-meta-poup').value)||0;
+  appData.config.metaRes=parseFloat(document.getElementById('cfg-meta-res').value)||6;
+  saveDB('config',appData.config);
+  document.getElementById('titulares-label').textContent=`${appData.config.t1||'T1'} & ${appData.config.t2||'T2'}`;
   showToast('Configurações salvas!');
 }
 function exportarJSON(){
-  let blob=new Blob([JSON.stringify(D(),null,2)],{type:'application/json'});
+  let blob=new Blob([JSON.stringify(appData,null,2)],{type:'application/json'});
   let url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`financas-${new Date().toISOString().split('T')[0]}.json`;a.click();URL.revokeObjectURL(url);
 }
 function importarJSON(e){
   let f=e.target.files[0];if(!f)return;
   let r=new FileReader();r.onload=ev=>{
-    try{SD(JSON.parse(ev.target.result));showToast('Dados importados!');renderPage(currentPage);}
-    catch{alert('Arquivo JSON inválido');}
+    try{
+      let dados=JSON.parse(ev.target.result);
+      appData=dados;
+      saveDBFull();
+      showToast('Dados importados e sincronizados!');
+      renderPage(currentPage);
+    }catch{alert('Arquivo JSON inválido');}
   };r.readAsText(f);
 }
 function limparDados(){
   confirmar('Apagar TODOS os dados? Esta ação é irreversível!',()=>{
-    localStorage.removeItem(LS_KEY);showToast('Dados apagados!');renderPage(currentPage);
+    appData={};
+    REF.set(null).then(()=>showToast('Dados apagados!')).catch(e=>showToast('Erro ao apagar: '+e.message));
+    renderPage(currentPage);
   });
 }
 
