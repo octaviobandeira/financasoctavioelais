@@ -13,6 +13,14 @@
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#F0F4F8;--sidebar:#1A2B4A;--pos:#27AE60;--neg:#E74C3C;--alert:#F39C12;--accent:#2980B9;--text:#2C3E50;--card:#fff;--border:#e0e8f0;--radius:12px}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:14px}
+#login-screen{display:flex;position:fixed;inset:0;background:var(--sidebar);z-index:9999;align-items:center;justify-content:center;flex-direction:column}
+#login-box{background:#fff;border-radius:var(--radius);padding:36px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
+#login-box .login-icon{font-size:52px;margin-bottom:12px}
+#login-box h2{font-size:20px;font-weight:700;margin-bottom:4px;color:var(--text)}
+#login-box p{font-size:13px;color:#888;margin-bottom:24px}
+#login-box .form-group{text-align:left;margin-bottom:14px}
+#login-error{color:var(--neg);font-size:12px;margin-top:12px;display:none}
+#login-version{color:rgba(255,255,255,.3);font-size:11px;margin-top:20px}
 #sidebar{width:240px;background:var(--sidebar);min-height:100vh;position:fixed;left:0;top:0;z-index:100;transition:.3s;display:flex;flex-direction:column}
 #sidebar .logo{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
 #sidebar .logo h2{color:#fff;font-size:16px;font-weight:700}
@@ -96,15 +104,6 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 .step-dots{display:flex;gap:8px;margin-bottom:20px;justify-content:center}
 .step-dot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:.3s}
 .step-dot.active{background:var(--accent)}.step-dot.done{background:var(--pos)}
-/* LOGIN */
-#login-screen{display:flex;position:fixed;inset:0;background:var(--sidebar);z-index:9999;align-items:center;justify-content:center;flex-direction:column}
-#login-box{background:#fff;border-radius:var(--radius);padding:36px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
-#login-box .login-icon{font-size:52px;margin-bottom:12px}
-#login-box h2{font-size:20px;font-weight:700;margin-bottom:4px;color:var(--text)}
-#login-box p{font-size:13px;color:#888;margin-bottom:24px}
-#login-box .form-group{text-align:left}
-#login-error{color:var(--neg);font-size:12px;margin-top:12px;display:none}
-#login-version{color:rgba(255,255,255,.3);font-size:11px;margin-top:20px}
 @media(max-width:768px){
 #sidebar{transform:translateX(-100%)}
 #sidebar.open{transform:translateX(0)}
@@ -127,19 +126,16 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
     <p>Faça login para acessar</p>
     <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
     <div class="form-group"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:4px" onclick="fazerLogin()" id="btn-login">Entrar</button>
-    <div id="login-error">⚠️ Email ou senha incorretos.</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="fazerLogin()" id="btn-login">Entrar</button>
+    <div id="login-error" style="color:var(--neg);font-size:12px;margin-top:12px;display:none"></div>
   </div>
-  <div id="login-version">Finanças do Casal v6</div>
+  <div id="login-version" style="color:rgba(255,255,255,.3);font-size:11px;margin-top:20px">Finanças do Casal v7</div>
 </div>
 
 <button id="hamburger" onclick="toggleSidebar()">☰</button>
 <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 <div id="sidebar">
-  <div class="logo">
-    <h2>💑 Finanças do Casal</h2>
-    <p id="titulares-label">Configure nas ⚙️</p>
-  </div>
+  <div class="logo"><h2>💑 Finanças do Casal</h2><p id="titulares-label">Configure nas ⚙️</p></div>
   <nav>
     <a class="active" onclick="showPage('dashboard')"><span class="icon">📊</span>Dashboard</a>
     <a onclick="showPage('dre')"><span class="icon">📋</span>DRE Mensal</a>
@@ -161,7 +157,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
     </div>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid rgba(255,255,255,.1)">
-    <div id="sync-status" style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.6)">
+    <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.6)">
       <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:.3s"></div>
       <span id="sync-label">Conectando...</span>
     </div>
@@ -290,7 +286,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 <div id="page-despesas" class="page">
   <h1 class="page-title">🏠 Despesas da Casa</h1>
   <p class="page-subtitle" id="desp-subtitle"></p>
-  <div class="dre-info">💡 <span>Registre aqui apenas despesas pagas em <strong>débito, PIX, dinheiro ou boleto</strong>. Despesas no cartão já são contabilizadas automaticamente.</span></div>
+  <div class="dre-info">💡 <span>Registre aqui apenas despesas pagas em <strong>débito, PIX, dinheiro ou boleto</strong>.</span></div>
   <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button class="btn btn-primary" onclick="abrirModalDespesa()">+ Nova Despesa</button></div>
   <div class="card" style="margin-bottom:16px">
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -514,7 +510,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 
 <div class="modal-overlay" id="modal-recorrentes"><div class="modal modal-lg">
   <h3>🔄 Confirmar Lançamentos Recorrentes</h3>
-  <p style="font-size:13px;color:#888;margin-bottom:16px">Identificamos lançamentos recorrentes. Confirme os que deseja replicar para <span id="rec-mes-label"></span>:</p>
+  <p style="font-size:13px;color:#888;margin-bottom:16px">Identificamos lançamentos recorrentes do mês anterior. Confirme os que deseja replicar para <span id="rec-mes-label"></span>:</p>
   <div id="recorrentes-lista"></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="fecharModal('modal-recorrentes')">Pular</button>
@@ -532,7 +528,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 </div></div>
 
 <script>
-// ===== FIREBASE =====
+// ===== FIREBASE CONFIG =====
 const firebaseConfig={
   apiKey:"AIzaSyB0mh5fy9U-wPzUg6cCXvyxYyeP0d716rs",
   authDomain:"financas-casal-9663e.firebaseapp.com",
@@ -548,7 +544,7 @@ const auth=firebase.auth();
 const REF=db.ref('financas');
 let appData={};
 
-// ===== AUTH =====
+// ===== FIREBASE AUTH =====
 function fazerLogin(){
   let email=document.getElementById('login-email').value.trim();
   let senha=document.getElementById('login-senha').value;
@@ -556,13 +552,14 @@ function fazerLogin(){
   let btn=document.getElementById('btn-login');
   if(!email||!senha){err.textContent='⚠️ Preencha email e senha.';err.style.display='block';return;}
   btn.textContent='Entrando...';btn.disabled=true;err.style.display='none';
-  auth.signInWithEmailAndPassword(email,senha).catch(()=>{
+  auth.signInWithEmailAndPassword(email,senha).catch(e=>{
     err.textContent='⚠️ Email ou senha incorretos.';err.style.display='block';
     btn.textContent='Entrar';btn.disabled=false;
   });
 }
 function fazerLogout(){
   confirmar('Deseja sair do app?',()=>{
+    REF.off();
     auth.signOut().then(()=>{
       appData={};
       document.getElementById('login-screen').style.display='flex';
@@ -574,8 +571,7 @@ function fazerLogout(){
   });
 }
 function setSyncStatus(s,l){
-  const colors={online:'#27AE60',syncing:'#F39C12',offline:'#E74C3C'};
-  document.getElementById('sync-dot').style.background=colors[s]||'#aaa';
+  document.getElementById('sync-dot').style.background={online:'#27AE60',syncing:'#F39C12',offline:'#E74C3C'}[s]||'#aaa';
   document.getElementById('sync-label').textContent=l;
 }
 function initFirebase(){
@@ -588,20 +584,21 @@ function initFirebase(){
         setSyncStatus('online','Sincronizado ✓');
         atualizarTitulares();
         renderPage(currentPage);
-      },e=>{setSyncStatus('offline','Sem conexão');console.error(e);});
+      },err=>{setSyncStatus('offline','Sem conexão');console.error(err);});
       db.ref('.info/connected').on('value',snap=>{if(!snap.val())setSyncStatus('offline','Sem conexão');});
     }else{
-      REF.off();
       document.getElementById('login-screen').style.display='flex';
     }
   });
 }
+
+// ===== SALVAR NO FIREBASE — tudo vai para a nuvem =====
 function saveDB(path,value){
   setSyncStatus('syncing','Salvando...');
   const clean=JSON.parse(JSON.stringify(value===undefined?null:value));
   REF.child(path).set(clean)
     .then(()=>setSyncStatus('online','Sincronizado ✓'))
-    .catch(e=>{setSyncStatus('offline','Erro: '+e.message);});
+    .catch(e=>{setSyncStatus('offline','Erro: '+e.message);console.error(e);});
 }
 
 // ===== CONSTANTES =====
@@ -610,44 +607,33 @@ const CATS_CORES={'Alimentação':'#27ae60','Supermercado':'#2ecc71','Restaurant
 const CATS_FIXAS_DEFAULT=['Casa/Manutenção','Streaming/Assinatura','Educação','Saúde/Farmácia','Pagamento de Fatura'];
 const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-// ===== ESTADO =====
 let currentPage='dashboard',currentMes=new Date().getMonth()+1,currentAno=new Date().getFullYear();
 let charts={},editInvId=null,editDespesaId=null,fechamentoStep=0;
 
 // ===== GETTERS/SETTERS — 100% Firebase =====
-// Helper: converte o que Firebase retorna (objeto ou array) para array
+// Converte array ou objeto do Firebase para array JS
 const toArr=v=>!v?[]:Array.isArray(v)?v:Object.values(v);
 
 const getConfig=()=>appData.config||{t1:'Titular 1',t2:'Titular 2',metaPoup:2000,metaRes:6};
-const getMes=(a,m)=>appData.meses?.[`${a}-${mp(m)}`]||{receitas:[],fixas:[],variaveis:[]};
+const getMes=(a,m)=>{let d=appData.meses?.[`${a}-${mp(m)}`]||{};return{receitas:toArr(d.receitas),fixas:toArr(d.fixas),variaveis:toArr(d.variaveis)};};
 const setMes=(a,m,v)=>{if(!appData.meses)appData.meses={};appData.meses[`${a}-${mp(m)}`]=v;saveDB(`meses/${a}-${mp(m)}`,v);};
-
 const getCartoes=()=>toArr(appData.cartoes).map(c=>({...c,lancamentos:toArr(c.lancamentos)}));
 const setCartoes=v=>{appData.cartoes=v;saveDB('cartoes',v);};
-
 const getInvs=()=>toArr(appData.investimentos);
 const setInvs=v=>{appData.investimentos=v;saveDB('investimentos',v);};
-
 const getAtivos=()=>toArr(appData.ativos);
 const setAtivos=v=>{appData.ativos=v;saveDB('ativos',v);};
-
 const getPassivos=()=>toArr(appData.passivos);
 const setPassivos=v=>{appData.passivos=v;saveDB('passivos',v);};
-
 const getDespesas=()=>toArr(appData.despesas);
 const setDespesas=v=>{appData.despesas=v;saveDB('despesas',v);};
-
 const getMetas=()=>toArr(appData.metas);
 const setMetas=v=>{appData.metas=v;saveDB('metas',v);};
-
 const getRegras=()=>toArr(appData.regras);
 const setRegras=v=>{appData.regras=v;saveDB('regras',v);};
-
 const getOrcamentos=()=>appData.orcamentos||{};
 const setOrcamentos=v=>{appData.orcamentos=v;saveDB('orcamentos',v);};
-
 const getCatsFixas=()=>new Set(toArr(appData.catsFixas).length?toArr(appData.catsFixas):CATS_FIXAS_DEFAULT);
-
 const getSnapshotsInv=()=>toArr(appData.snapshotsInv);
 const setSnapshotsInv=v=>{appData.snapshotsInv=v;saveDB('snapshotsInv',v);};
 
@@ -660,6 +646,7 @@ const mesK=(a,m)=>`${a}-${mp(m)}`;
 const mesLabel=(a,m)=>MESES[m-1]+'/'+a;
 const mesAnt=(a,m)=>m===1?{a:a-1,m:12}:{a,m:m-1};
 const proxMes=(a,m)=>m===12?{a:a+1,m:1}:{a,m:m+1};
+
 function atualizarTitulares(){
   const cfg=getConfig();
   document.getElementById('titulares-label').textContent=`${cfg.t1||'Titular 1'} & ${cfg.t2||'Titular 2'}`;
@@ -692,9 +679,9 @@ function renderPage(p){
 function setSubtitle(id){let el=document.getElementById(id);if(el)el.textContent=mesLabel(currentAno,currentMes);}
 
 // ===== CÁLCULOS =====
-const calcRec=(a,m)=>toArr(getMes(a,m).receitas).reduce((s,r)=>s+(r.valor||0),0);
-const calcFix=(a,m)=>toArr(getMes(a,m).fixas).reduce((s,r)=>s+(r.valor||0),0);
-const calcVar=(a,m)=>toArr(getMes(a,m).variaveis).reduce((s,r)=>s+(r.valor||0),0);
+const calcRec=(a,m)=>(getMes(a,m).receitas||[]).reduce((s,r)=>s+(r.valor||0),0);
+const calcFix=(a,m)=>(getMes(a,m).fixas||[]).reduce((s,r)=>s+(r.valor||0),0);
+const calcVar=(a,m)=>(getMes(a,m).variaveis||[]).reduce((s,r)=>s+(r.valor||0),0);
 function calcFaturaCartao(c,a,m){return toArr(c.lancamentos).filter(l=>l.mesRef===mesK(a,m)).reduce((s,l)=>s+(l.valorParcela||l.valor||0),0);}
 function calcFaturaTotal(a,m){return getCartoes().reduce((s,c)=>s+calcFaturaCartao(c,a,m),0);}
 function calcFaturaFixaVariavel(a,m){
@@ -713,9 +700,9 @@ function calcPatrimLiq(){
   let passivos=getPassivos().reduce((s,p)=>s+(p.saldo||0),0)+getCartoes().reduce((s,c)=>s+toArr(c.lancamentos).filter(l=>!l.pago).reduce((x,l)=>x+(l.valorParcela||l.valor||0),0),0);
   return ativos-passivos;
 }
-function calcParcelasFuturas(c){
+function calcParcelasFuturas(cartao){
   const hoje=mesK(currentAno,currentMes);let map={};
-  toArr(c.lancamentos).forEach(l=>{if(l.mesRef>hoje&&!l.pago){map[l.mesRef]=(map[l.mesRef]||0)+(l.valorParcela||l.valor||0);}});
+  toArr(cartao.lancamentos).forEach(l=>{if(l.mesRef>hoje&&!l.pago){map[l.mesRef]=(map[l.mesRef]||0)+(l.valorParcela||l.valor||0);}});
   return Object.entries(map).sort(([a],[b])=>a.localeCompare(b));
 }
 function calcGastoCategoria(cat,a,m){
@@ -740,16 +727,12 @@ function renderDashboard(){
     <div class="kpi"><div class="label">Meta de Poupança</div><div class="val">${fmtBRL(cfg.metaPoup||0)}</div><div class="sub">${rec>0?fmtPct(result/rec*100):'0%'} da renda</div></div>
   `;
   let alertas='';
-  if(result<0)alertas+=`<div class="alert-box danger">⚠️ Resultado negativo em ${mesLabel(currentAno,currentMes)}: ${fmtBRL(result)}</div>`;
+  if(result<0)alertas+=`<div class="alert-box danger">⚠️ Resultado negativo: ${fmtBRL(result)}</div>`;
   if(rec>0&&desp/rec>0.8)alertas+=`<div class="alert-box warn">⚠️ Renda comprometida em ${fmtPct(desp/rec*100)}</div>`;
-  Object.entries(getOrcamentos()).forEach(([cat,lim])=>{
-    let g=calcGastoCategoria(cat,currentAno,currentMes),p=lim>0?g/lim*100:0;
-    if(p>=90)alertas+=`<div class="alert-box danger">🎯 Orçamento <strong>${cat}</strong>: ${fmtPct(p)} usado</div>`;
-    else if(p>=70)alertas+=`<div class="alert-box warn">🎯 Orçamento <strong>${cat}</strong>: ${fmtPct(p)} usado</div>`;
-  });
+  Object.entries(getOrcamentos()).forEach(([cat,lim])=>{let g=calcGastoCategoria(cat,currentAno,currentMes),p=lim>0?g/lim*100:0;if(p>=90)alertas+=`<div class="alert-box danger">🎯 Orçamento <strong>${cat}</strong>: ${fmtPct(p)} usado</div>`;else if(p>=70)alertas+=`<div class="alert-box warn">🎯 Orçamento <strong>${cat}</strong>: ${fmtPct(p)} usado</div>`;});
   getCartoes().forEach(c=>{
-    let f2=toArr(c.lancamentos).filter(l=>!l.pago).reduce((s,l)=>s+(l.valorParcela||l.valor||0),0);
-    if(c.limite&&f2/c.limite>0.7)alertas+=`<div class="alert-box warn">💳 ${c.nome}: ${fmtPct(f2/c.limite*100)} do limite</div>`;
+    let fat2=toArr(c.lancamentos).filter(l=>!l.pago).reduce((s,l)=>s+(l.valorParcela||l.valor||0),0);
+    if(c.limite&&fat2/c.limite>0.7)alertas+=`<div class="alert-box warn">💳 ${c.nome}: ${fmtPct(fat2/c.limite*100)} do limite</div>`;
     let hoje=new Date(),dv=new Date(hoje.getFullYear(),hoje.getMonth(),c.vencimento),diff=Math.ceil((dv-hoje)/864e5);
     if(diff>=0&&diff<=3)alertas+=`<div class="alert-box danger">💳 Fatura ${c.nome} vence ${diff===0?'hoje':'em '+diff+' dia(s)'}!</div>`;
   });
@@ -785,10 +768,9 @@ const VAR_DEF=[{desc:'Supermercado',valor:0},{desc:'Combustível',valor:0},{desc
 function renderDRE(){
   setSubtitle('dre-subtitle');
   let mes=getMes(currentAno,currentMes);
-  if(!toArr(mes.receitas).length)mes.receitas=JSON.parse(JSON.stringify(REC_DEF));
-  if(!toArr(mes.fixas).length)mes.fixas=JSON.parse(JSON.stringify(FIX_DEF));
-  if(!toArr(mes.variaveis).length)mes.variaveis=JSON.parse(JSON.stringify(VAR_DEF));
-  mes.receitas=toArr(mes.receitas);mes.fixas=toArr(mes.fixas);mes.variaveis=toArr(mes.variaveis);
+  if(!mes.receitas?.length)mes.receitas=JSON.parse(JSON.stringify(REC_DEF));
+  if(!mes.fixas?.length)mes.fixas=JSON.parse(JSON.stringify(FIX_DEF));
+  if(!mes.variaveis?.length)mes.variaveis=JSON.parse(JSON.stringify(VAR_DEF));
   renderLinhasDRE('receitas-lista',mes.receitas,'r');
   renderLinhasDRE('fixas-lista',mes.fixas,'f');
   renderLinhasDRE('variaveis-lista',mes.variaveis,'v');
@@ -804,7 +786,6 @@ function renderLinhasDRE(elId,lista,tipo){
 }
 function updDRE(tipo,idx,campo,val){
   let mes=getMes(currentAno,currentMes);
-  mes.receitas=toArr(mes.receitas);mes.fixas=toArr(mes.fixas);mes.variaveis=toArr(mes.variaveis);
   if(tipo==='r')mes.receitas[idx][campo]=val;
   else if(tipo==='f')mes.fixas[idx][campo]=val;
   else mes.variaveis[idx][campo]=val;
@@ -812,7 +793,6 @@ function updDRE(tipo,idx,campo,val){
 }
 function remDRE(tipo,idx){
   let mes=getMes(currentAno,currentMes);
-  mes.receitas=toArr(mes.receitas);mes.fixas=toArr(mes.fixas);mes.variaveis=toArr(mes.variaveis);
   if(tipo==='r')mes.receitas.splice(idx,1);
   else if(tipo==='f')mes.fixas.splice(idx,1);
   else mes.variaveis.splice(idx,1);
@@ -820,7 +800,6 @@ function remDRE(tipo,idx){
 }
 function addLinhaDRE(tipo){
   let mes=getMes(currentAno,currentMes);
-  mes.receitas=toArr(mes.receitas);mes.fixas=toArr(mes.fixas);mes.variaveis=toArr(mes.variaveis);
   if(tipo==='r')mes.receitas.push({desc:'Nova Receita',valor:0});
   else if(tipo==='f')mes.fixas.push({desc:'Nova Despesa Fixa',valor:0});
   else mes.variaveis.push({desc:'Nova Despesa Variável',valor:0});
@@ -828,9 +807,9 @@ function addLinhaDRE(tipo){
 }
 function atualizarTotaisDRE(){
   let mes=getMes(currentAno,currentMes);
-  let trec=toArr(mes.receitas).reduce((s,r)=>s+(r.valor||0),0);
-  let tfix=toArr(mes.fixas).reduce((s,r)=>s+(r.valor||0),0);
-  let tvar=toArr(mes.variaveis).reduce((s,r)=>s+(r.valor||0),0);
+  let trec=(mes.receitas||[]).reduce((s,r)=>s+(r.valor||0),0);
+  let tfix=(mes.fixas||[]).reduce((s,r)=>s+(r.valor||0),0);
+  let tvar=(mes.variaveis||[]).reduce((s,r)=>s+(r.valor||0),0);
   let tfat=calcFaturaTotal(currentAno,currentMes);
   let fv=calcFaturaFixaVariavel(currentAno,currentMes);
   let det=calcFaturaDetalhada(currentAno,currentMes);
@@ -857,37 +836,22 @@ function atualizarTotaisDRE(){
       </div>
     </div>
     <div class="dre-total" style="margin-top:4px;background:${result>=0?'#e8f8f0':'#fdecea'}">
-      <span><strong>Resultado do Mês</strong></span>
-      <span style="color:${result>=0?'var(--pos)':'var(--neg)'}"><strong>${fmtBRL(result)}</strong></span>
+      <span><strong>Resultado do Mês</strong></span><span style="color:${result>=0?'var(--pos)':'var(--neg)'}"><strong>${fmtBRL(result)}</strong></span>
     </div>`;
   let taxPoup=trec>0?result/trec*100:0,compFix=trec>0?tFixTotal/trec*100:0,compVar=trec>0?tVarTotal/trec*100:0;
   document.getElementById('dre-indicadores').innerHTML=`
-    <div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Taxa de Poupança</span><span style="font-weight:600">${fmtPct(taxPoup)}</span></div>
-      <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(taxPoup,100)}%;background:${taxPoup>=20?'var(--pos)':taxPoup>=10?'var(--alert)':'var(--neg)'}"></div></div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px">Ideal: ≥ 20%</div>
-    </div>
-    <div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Comprometimento Fixo</span><span style="font-weight:600">${fmtPct(compFix)}</span></div>
-      <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(compFix,100)}%;background:${compFix<50?'var(--pos)':compFix<70?'var(--alert)':'var(--neg)'}"></div></div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tfix)} + Cartão ${fmtBRL(fv.fixa)} = ${fmtBRL(tFixTotal)}</div>
-    </div>
-    <div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Comprometimento Variável</span><span style="font-weight:600">${fmtPct(compVar)}</span></div>
-      <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(compVar,100)}%;background:${compVar<30?'var(--pos)':compVar<50?'var(--alert)':'var(--neg)'}"></div></div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tvar)} + Cartão ${fmtBRL(fv.variavel)} = ${fmtBRL(tVarTotal)}</div>
-    </div>`;
+    <div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Taxa de Poupança</span><span style="font-weight:600">${fmtPct(taxPoup)}</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(taxPoup,100)}%;background:${taxPoup>=20?'var(--pos)':taxPoup>=10?'var(--alert)':'var(--neg)'}"></div></div><div style="font-size:10px;color:#aaa;margin-top:2px">Ideal: ≥ 20%</div></div>
+    <div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Comprometimento Fixo</span><span style="font-weight:600">${fmtPct(compFix)}</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(compFix,100)}%;background:${compFix<50?'var(--pos)':compFix<70?'var(--alert)':'var(--neg)'}"></div></div><div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tfix)} + Cartão ${fmtBRL(fv.fixa)} = ${fmtBRL(tFixTotal)}</div></div>
+    <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Comprometimento Variável</span><span style="font-weight:600">${fmtPct(compVar)}</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(compVar,100)}%;background:${compVar<30?'var(--pos)':compVar<50?'var(--alert)':'var(--neg)'}"></div></div><div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tvar)} + Cartão ${fmtBRL(fv.variavel)} = ${fmtBRL(tVarTotal)}</div></div>`;
 }
 function toggleFatDet(){let el=document.getElementById('fat-detalhe'),h=document.getElementById('fat-hint');let open=el.style.display==='none';el.style.display=open?'block':'none';h.textContent=open?'▲ fechar':'▼ detalhes';}
 function salvarDRE(){showToast('DRE salvo!');}
 function copiarMesAnterior(){
   let ant=mesAnt(currentAno,currentMes),prev=getMes(ant.a,ant.m),atual=getMes(currentAno,currentMes);
-  prev.receitas=toArr(prev.receitas);prev.fixas=toArr(prev.fixas);prev.variaveis=toArr(prev.variaveis);
-  if(prev.receitas.length)atual.receitas=JSON.parse(JSON.stringify(prev.receitas));
-  if(prev.fixas.length)atual.fixas=JSON.parse(JSON.stringify(prev.fixas));
-  if(prev.variaveis.length)atual.variaveis=prev.variaveis.map(v=>({...v,valor:0}));
-  setMes(currentAno,currentMes,atual);renderDRE();
-  showToast('Copiado! Receitas/fixas com valores, variáveis zeradas.');
+  if(prev.receitas?.length)atual.receitas=JSON.parse(JSON.stringify(prev.receitas));
+  if(prev.fixas?.length)atual.fixas=JSON.parse(JSON.stringify(prev.fixas));
+  if(prev.variaveis?.length)atual.variaveis=prev.variaveis.map(v=>({...v,valor:0}));
+  setMes(currentAno,currentMes,atual);renderDRE();showToast('Copiado!');
 }
 
 // ===== CARTÕES =====
@@ -909,12 +873,9 @@ function renderCartoes(){
     const futuras=calcParcelasFuturas(c),totalFut=futuras.reduce((s,[,v])=>s+v,0);
     const lancsMes=toArr(c.lancamentos).filter(l=>l.mesRef===mk);
     const fatPaga=lancsMes.length>0&&lancsMes.every(l=>l.pago);
-    return`<div class="cartao-card" style="border-left-color:${cor}">
+    return `<div class="cartao-card" style="border-left-color:${cor}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
-        <div>
-          <div style="font-weight:700;font-size:16px">💳 ${c.nome} ${fatPaga?'<span class="badge pos">✅ Paga</span>':''}</div>
-          <div style="font-size:12px;color:#888;margin-top:2px">${c.titular} · Vence dia ${c.vencimento} · Fecha dia ${c.fechamento}</div>
-        </div>
+        <div><div style="font-weight:700;font-size:16px">💳 ${c.nome} ${fatPaga?'<span class="badge pos">✅ Paga</span>':''}</div><div style="font-size:12px;color:#888;margin-top:2px">${c.titular} · Vence dia ${c.vencimento} · Fecha dia ${c.fechamento}</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-sm btn-primary" onclick="abrirModalLancamento('${c.id}')">+ Lançamento</button>
           ${lancsMes.length&&!fatPaga?`<button class="btn btn-sm btn-success" onclick="pagarFatura('${c.id}')">✅ Pagar</button>`:''}
@@ -932,12 +893,7 @@ function renderCartoes(){
         <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${cor}"></div></div>
         ${pct>70?`<div style="font-size:11px;color:var(--neg);margin-top:4px">⚠️ Acima de 70% — atenção ao score</div>`:''}
       </div>
-      ${futuras.length?`
-      <div>
-        <div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Parcelas em aberto</div>
-        ${futuras.map(([mk2,v])=>{let[a2,m2]=mk2.split('-').map(Number);return`<div class="parcela-linha"><span>${mesLabel(a2,m2)}</span><span style="font-weight:700;color:var(--neg)">${fmtBRL(v)}</span></div>`;}).join('')}
-        <div style="display:flex;justify-content:space-between;font-weight:700;padding:8px 10px;background:var(--bg);border-radius:6px;margin-top:4px;font-size:13px"><span>Total futuro</span><span style="color:var(--alert)">${fmtBRL(totalFut)}</span></div>
-      </div>`:`<div style="font-size:12px;color:#aaa;text-align:center;padding:8px 0">✅ Nenhuma parcela futura em aberto</div>`}
+      ${futuras.length?`<div><div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Parcelas em aberto</div>${futuras.map(([mk2,v])=>{let[a2,m2]=mk2.split('-').map(Number);return`<div class="parcela-linha"><span>${mesLabel(a2,m2)}</span><span style="font-weight:700;color:var(--neg)">${fmtBRL(v)}</span></div>`;}).join('')}<div style="display:flex;justify-content:space-between;font-weight:700;padding:8px 10px;background:var(--bg);border-radius:6px;margin-top:4px;font-size:13px"><span>Total futuro</span><span style="color:var(--alert)">${fmtBRL(totalFut)}</span></div></div>`:`<div style="font-size:12px;color:#aaa;text-align:center;padding:8px 0">✅ Nenhuma parcela futura em aberto</div>`}
     </div>`;
   }).join(''):'<div class="card" style="text-align:center;padding:40px;color:#aaa"><div style="font-size:40px;margin-bottom:12px">💳</div><p>Nenhum cartão cadastrado.</p><button class="btn btn-primary" style="margin-top:12px" onclick="abrirModalCartao()">+ Cadastrar Cartão</button></div>';
 }
@@ -984,6 +940,7 @@ function salvarLancamento(){
   let recorrente=document.getElementById('l-recorrente').checked;
   if(!desc)return alert('Informe a descrição');if(!valor)return alert('Informe o valor');
   let cartoes=getCartoes(),c=cartoes.find(x=>x.id===cartId);if(!c)return;
+  if(!c.lancamentos)c.lancamentos=[];
   let d=new Date(data+'T12:00:00');
   for(let p=0;p<parc;p++){
     let dd=new Date(d.getFullYear(),d.getMonth()+p,d.getDate());
@@ -993,4 +950,18 @@ function salvarLancamento(){
   setCartoes(cartoes);fecharModal('modal-lancamento');renderCartoes();showToast(`${parc} parcela(s) lançada(s)!`);
 }
 function pagarFatura(cartaoId){
-  let cartoes=getCartoes(),c=cartoes.find(x
+  let cartoes=getCartoes(),c=cartoes.find(x=>x.id===cartaoId);if(!c)return;
+  let mk=mesK(currentAno,currentMes),lans=toArr(c.lancamentos).filter(l=>l.mesRef===mk);
+  if(!lans.length)return;
+  confirmar(`Marcar fatura de ${mesLabel(currentAno,currentMes)} como paga?`,()=>{
+    c.lancamentos=toArr(c.lancamentos).map(l=>l.mesRef===mk?{...l,pago:true}:l);
+    setCartoes(cartoes);renderCartoes();showToast('Fatura paga!');
+  });
+}
+function abrirModalRegras(){
+  document.getElementById('regra-cat').innerHTML=CATEGORIAS.map(c=>`<option>${c}</option>`).join('');
+  renderRegras();abrirModal('modal-regras');
+}
+function renderRegras(){
+  let regras=getRegras();
+  document.getElementById('regras-lista').innerHTML=regras.length?`<table
