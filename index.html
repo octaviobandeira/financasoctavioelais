@@ -6,7 +6,7 @@
 <title>Finanças do Casal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Firebase -->
+<!-- Firebase -->h
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -52,10 +52,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 #main{margin-left:240px;flex:1;padding:24px;transition:.3s}
 .card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .card h3{font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:24px}
 .kpi{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .kpi .label{font-size:11px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
-.kpi .val{font-size:22px;font-weight:700;margin-top:6px}
+.kpi .val{font-size:clamp(12px,1.6vw,22px);font-weight:700;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .val.pos{color:var(--pos)}.kpi .val.neg{color:var(--neg)}.kpi .val.alert{color:var(--alert)}
 .kpi .sub{font-size:11px;color:#aaa;margin-top:4px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
