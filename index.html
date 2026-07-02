@@ -856,7 +856,6 @@ function renderDashboard(){
     <div class="kpi"><div class="label">Receita do Mês</div><div class="val pos">${fmtBRL(rec)}</div></div>
     <div class="kpi"><div class="label">Despesas do Mês</div><div class="val neg">${fmtBRL(desp)}</div></div>
     <div class="kpi"><div class="label">Resultado</div><div class="val ${result>=0?'pos':'neg'}">${fmtBRL(result)}</div></div>
-    <div class="kpi"><div class="label">Patrimônio Líquido</div><div class="val">${fmtBRL(patrim)}</div></div>
     <div class="kpi"><div class="label">Cartão em Aberto</div><div class="val alert">${fmtBRL(totalAberto)}</div></div>
     <div class="kpi"><div class="label">Meta de Poupança</div><div class="val">${fmtBRL(cfg.metaPoup||0)}</div><div class="sub">${rec>0?fmtPct(result/rec*100):'0%'} da renda</div></div>
   `;
