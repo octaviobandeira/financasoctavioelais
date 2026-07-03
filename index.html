@@ -592,8 +592,18 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
   <p style="font-size:13px;color:#888;margin-bottom:16px">Identificamos lançamentos recorrentes do mês anterior. Confirme os que deseja replicar para <span id="rec-mes-label"></span>:</p>
   <div id="recorrentes-lista"></div>
   <div class="modal-footer">
-    <button class="btn btn-outline" onclick="fecharModal('modal-recorrentes')">Pular</button>
+    <button class="btn btn-outline" onclick="pularRecorrentes()">Pular</button>
     <button class="btn btn-success" onclick="confirmarRecorrentes()">✅ Confirmar Selecionados</button>
+  </div>
+</div></div>
+
+<div class="modal-overlay" id="modal-recorrentes-despesas"><div class="modal modal-lg">
+  <h3>🔄 Confirmar Despesas Recorrentes da Casa</h3>
+  <p style="font-size:13px;color:#888;margin-bottom:16px">Identificamos despesas recorrentes do mês anterior. Confirme as que deseja replicar para <span id="rec-desp-mes-label"></span>:</p>
+  <div id="recorrentes-despesas-lista"></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="pularRecorrentesDespesas()">Pular</button>
+    <button class="btn btn-success" onclick="confirmarRecorrentesDespesas()">✅ Confirmar Selecionadas</button>
   </div>
 </div></div>
 
@@ -731,8 +741,21 @@ const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','
 // ===== ESTADO =====
 let currentPage='dashboard', currentMes=new Date().getMonth()+1, currentAno=new Date().getFullYear();
 let charts={}, editInvId=null, editDespesaId=null, fechamentoStep=0, formRapidoAberto=false;
+// BUG CORRIGIDO: renderCartoes() reconstrói todo o innerHTML a cada disparo
+// do listener do Firebase — inclusive por saves do outro titular em telas
+// não relacionadas. Sem este Set, o painel "Ver Lançamentos" que o usuário
+// tivesse aberto era resetado para fechado a cada rebuild, mesmo sem o
+// usuário ter feito nada.
+let paineisLancsAbertos=new Set();
 
 // ===== DADOS COMPARTILHADOS =====
+// A partir desta versão, cada escritor grava APENAS a chave que efetivamente
+// mudou (via saveDB(path,...)) em vez de reescrever a árvore inteira — isso
+// evita que a escrita de um titular apague, por colisão de "last write wins"
+// no nó raiz, uma escrita concorrente do outro titular em outra parte dos
+// dados. SD(d) (reescrita completa) fica reservada só para as duas ações que
+// são, por natureza, substituições totais e explicitamente confirmadas pelo
+// usuário: importarJSON() e limparDados().
 const LS_KEY='fd_backup_offline';
 const D=()=>appData||{};
 const SD=d=>{
@@ -740,26 +763,37 @@ const SD=d=>{
   localStorage.setItem(LS_KEY,JSON.stringify(d));
   saveDBFull();
 };
+const setTopKey=(key,v)=>{
+  let d=D();d[key]=v;appData=d;
+  localStorage.setItem(LS_KEY,JSON.stringify(d));
+  saveDB(key,v);
+};
 const getConfig=()=>{let d=D();return d.config||{t1:'Titular 1',t2:'Titular 2',metaPoup:2000,metaRes:6};};
+const setConfig=v=>setTopKey('config',v);
 const getMes=(a,m)=>{let d=D();return d.meses?.[`${a}-${mp(m)}`]||{receitas:[],fixas:[],variaveis:[]};};
-const setMes=(a,m,v)=>{let d=D();(d.meses=d.meses||{})[`${a}-${mp(m)}`]=v;SD(d);};
+const setMes=(a,m,v)=>{
+  let d=D();(d.meses=d.meses||{})[`${a}-${mp(m)}`]=v;appData=d;
+  localStorage.setItem(LS_KEY,JSON.stringify(d));
+  saveDB('meses/'+mesK(a,m),v); // grava só o mês alterado, não a árvore "meses" inteira
+};
 const getCartoes=()=>D().cartoes||[];
-const setCartoes=v=>{let d=D();d.cartoes=v;SD(d);};
+const setCartoes=v=>setTopKey('cartoes',v);
 const getInvs=()=>D().investimentos||[];
-const setInvs=v=>{let d=D();d.investimentos=v;SD(d);};
+const setInvs=v=>setTopKey('investimentos',v);
 const getAtivos=()=>D().ativos||[];
-const setAtivos=v=>{let d=D();d.ativos=v;SD(d);};
+const setAtivos=v=>setTopKey('ativos',v);
 const getPassivos=()=>D().passivos||[];
-const setPassivos=v=>{let d=D();d.passivos=v;SD(d);};
+const setPassivos=v=>setTopKey('passivos',v);
 const getDespesas=()=>D().despesas||[];
-const setDespesas=v=>{let d=D();d.despesas=v;SD(d);};
+const setDespesas=v=>setTopKey('despesas',v);
 const getMetas=()=>D().metas||[];
-const setMetas=v=>{let d=D();d.metas=v;SD(d);};
+const setMetas=v=>setTopKey('metas',v);
 const getRegras=()=>D().regras||[];
-const setRegras=v=>{let d=D();d.regras=v;SD(d);};
+const setRegras=v=>setTopKey('regras',v);
 const getOrcamentos=()=>D().orcamentos||{};
-const setOrcamentos=v=>{let d=D();d.orcamentos=v;SD(d);};
+const setOrcamentos=v=>setTopKey('orcamentos',v);
 const getCatsFixas=()=>new Set(D().catsFixas||CATS_FIXAS_DEFAULT);
+const setCatsFixas=v=>setTopKey('catsFixas',v);
 
 // ===== UTILS =====
 const fmtBRL=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -861,6 +895,7 @@ function renderDashboard(){
   document.getElementById('alertas-dash').innerHTML=alertas||'';
   renderChartsDB();
   verificarRecorrentesCartao();
+  verificarRecorrentesDespesas();
 }
 function renderChartsDB(){
   let labels=[],recs=[],desps=[];
@@ -1042,16 +1077,21 @@ function renderCartoes(){
           <span>Total futuro</span><span style="color:var(--alert)">${fmtBRL(totalFut)}</span>
         </div>
       </div>`:`<div style="font-size:12px;color:#aaa;text-align:center;padding:8px 0">✅ Nenhuma parcela futura em aberto</div>`}
-      <div id="lancs-detalhe-${c.id}" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)"></div>
+      <div id="lancs-detalhe-${c.id}" style="display:${paineisLancsAbertos.has(c.id)?'block':'none'};margin-top:14px;padding-top:14px;border-top:1px solid var(--border)"></div>
     </div>`;
   }).join(''):'<div class="card" style="text-align:center;padding:40px;color:#aaa"><div style="font-size:40px;margin-bottom:12px">💳</div><p>Nenhum cartão cadastrado.</p><button class="btn btn-primary" style="margin-top:12px" onclick="abrirModalCartao()">+ Cadastrar Cartão</button></div>';
+  // Repopula o conteúdo dos painéis que já estavam marcados como abertos —
+  // o rebuild do innerHTML acima recria a div vazia, então o conteúdo
+  // precisa ser regerado aqui, e não só a visibilidade.
+  paineisLancsAbertos.forEach(id=>{if(document.getElementById('lancs-detalhe-'+id))renderLancsDetalhe(id);});
 }
 function toggleLancsCartao(cartaoId){
   let el=document.getElementById('lancs-detalhe-'+cartaoId);
   if(!el)return;
   let mostrar=el.style.display==='none';
   el.style.display=mostrar?'block':'none';
-  if(mostrar)renderLancsDetalhe(cartaoId);
+  if(mostrar){paineisLancsAbertos.add(cartaoId);renderLancsDetalhe(cartaoId);}
+  else paineisLancsAbertos.delete(cartaoId);
 }
 function renderLancsDetalhe(cartaoId){
   let c=getCartoes().find(x=>x.id===cartaoId);if(!c)return;
@@ -1075,9 +1115,9 @@ function excluirLancamento(cartaoId,lancId){
   confirmar('Excluir este lançamento? Se fizer parte de uma compra parcelada, apenas esta parcela será removida — as demais parcelas continuam lançadas.',()=>{
     let cartoes=getCartoes(),c=cartoes.find(x=>x.id===cartaoId);if(!c)return;
     c.lancamentos=c.lancamentos.filter(l=>l.id!==lancId);
-    setCartoes(cartoes);renderCartoes();
-    let el=document.getElementById('lancs-detalhe-'+cartaoId);
-    if(el){el.style.display='block';renderLancsDetalhe(cartaoId);}
+    setCartoes(cartoes);
+    paineisLancsAbertos.add(cartaoId); // garante que o painel continue aberto após o rebuild em renderCartoes()
+    renderCartoes();
     showToast('Lançamento excluído!');
   });
 }
@@ -1167,7 +1207,7 @@ function verificarRecorrentesCartao(){
       if(!jaExiste)recorrentes.push({...l,cartaoId:c.id,cartaoNome:c.nome});
     });
   });
-  if(!recorrentes.length){let dd=D();dd.recVerificado=mk;SD(dd);return;}
+  if(!recorrentes.length){setTopKey('recVerificado',mk);return;}
   document.getElementById('rec-mes-label').textContent=mesLabel(currentAno,currentMes);
   document.getElementById('recorrentes-lista').innerHTML=recorrentes.map((l,i)=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
@@ -1185,8 +1225,47 @@ function confirmarRecorrentes(){
     let c=cartoes.find(x=>x.id===l.cartaoId);if(!c)return;
     c.lancamentos.push({id:geraId(),data:data.split('-').reverse().join('/'),desc:l.desc,categoria:l.categoria,valor:l.valor,valorParcela:l.valorParcela||l.valor,parcela:1,totalParcelas:1,mesRef:mk,pago:false,recorrente:true});
   });
-  setCartoes(cartoes);let dd=D();dd.recVerificado=mk;SD(dd);
+  setCartoes(cartoes);setTopKey('recVerificado',mk);
   fecharModal('modal-recorrentes');showToast('Recorrentes adicionados!');renderCartoes();
+}
+function pularRecorrentes(){
+  // BUG CORRIGIDO: antes, "Pular" só fechava o modal sem marcar recVerificado,
+  // então o modal reabria a cada save alheio (qualquer disparo do listener do
+  // Firebase enquanto o mês não fosse explicitamente confirmado ou pulado).
+  setTopKey('recVerificado',mesK(currentAno,currentMes));
+  fecharModal('modal-recorrentes');
+}
+
+// ===== RECORRENTES DE DESPESAS DA CASA (mesmo padrão dos cartões) =====
+function verificarRecorrentesDespesas(){
+  let mk=mesK(currentAno,currentMes),ant=mesAnt(currentAno,currentMes),antK=mesK(ant.a,ant.m);
+  let d=D();if(d.recVerificadoDespesas===mk)return;
+  let despesas=getDespesas();
+  let candidatas=despesas.filter(x=>x.recorrente&&x.mes===antK);
+  let recorrentes=candidatas.filter(x=>!despesas.some(y=>y.descricao===x.descricao&&y.mes===mk&&y.recorrente));
+  if(!recorrentes.length){setTopKey('recVerificadoDespesas',mk);return;}
+  document.getElementById('rec-desp-mes-label').textContent=mesLabel(currentAno,currentMes);
+  document.getElementById('recorrentes-despesas-lista').innerHTML=recorrentes.map((d2,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <input type="checkbox" id="rec-desp-${i}" checked style="width:auto">
+      <div style="flex:1"><div style="font-weight:600;font-size:13px">${d2.descricao}</div><div style="font-size:11px;color:#888">${d2.categoria} · ${d2.forma} · ${fmtBRL(d2.valor)}/mês</div></div>
+      <strong style="color:var(--neg)">${fmtBRL(d2.valor)}</strong>
+    </div>`).join('');
+  window._recorrentesDespesas=recorrentes;abrirModal('modal-recorrentes-despesas');
+}
+function confirmarRecorrentesDespesas(){
+  let mk=mesK(currentAno,currentMes),data=new Date().toISOString().split('T')[0];
+  let despesas=getDespesas();
+  (window._recorrentesDespesas||[]).forEach((d2,i)=>{
+    if(!document.getElementById('rec-desp-'+i)?.checked)return;
+    despesas.push({...d2,id:geraId(),data,mes:mk,status:'A Pagar'});
+  });
+  setDespesas(despesas);setTopKey('recVerificadoDespesas',mk);
+  fecharModal('modal-recorrentes-despesas');showToast('Despesas recorrentes adicionadas!');renderDespesas();
+}
+function pularRecorrentesDespesas(){
+  setTopKey('recVerificadoDespesas',mesK(currentAno,currentMes));
+  fecharModal('modal-recorrentes-despesas');
 }
 
 // ===== ORÇAMENTO =====
@@ -1291,7 +1370,7 @@ function salvarInvsFechamento(){
 }
 function concluirFechamento(){
   salvarInvsFechamento();
-  let d=D();d.ultimoFechamento=mesK(currentAno,currentMes);SD(d);
+  setTopKey('ultimoFechamento',mesK(currentAno,currentMes));
   fechamentoStep=0;showToast(`✅ Fechamento de ${mesLabel(currentAno,currentMes)} concluído!`);renderFechamento();
 }
 
@@ -1320,7 +1399,7 @@ function salvarLancamentoRapido(){
 
 // ===== INVESTIMENTOS =====
 const getSnapshotsInv=()=>D().snapshotsInv||[];
-const setSnapshotsInv=v=>{let d=D();d.snapshotsInv=v;SD(d);};
+const setSnapshotsInv=v=>setTopKey('snapshotsInv',v);
 
 function salvarSnapshotMes(){
   let mk=mesK(currentAno,currentMes);
@@ -1520,13 +1599,15 @@ function salvarPassivo(){let desc=document.getElementById('ps-desc').value.trim(
 function excluirPassivo(id){confirmar('Excluir passivo?',()=>{setPassivos(getPassivos().filter(p=>p.id!==id));renderPatrimonio();});}
 
 // ===== DESPESAS =====
+// BUG CORRIGIDO: a geração de despesas recorrentes rodava dentro do próprio
+// render, disparado a cada save de QUALQUER dado do app (via listener do
+// Firebase) enquanto o usuário estivesse nesta página — e criava a despesa
+// silenciosamente, sem confirmação, diferente do fluxo de cartões (que usa
+// modal). Agora a verificação roda uma vez, com confirmação explícita, no
+// mesmo padrão de verificarRecorrentesCartao().
 function renderDespesas(){
   setSubtitle('desp-subtitle');
   let mk=mesK(currentAno,currentMes);
-  getDespesas().filter(d=>d.recorrente&&d.mes<mk).forEach(d=>{
-    let existe=getDespesas().some(x=>x.descricao===d.descricao&&x.mes===mk&&x.recorrente);
-    if(!existe){let nd=getDespesas();nd.push({...d,id:geraId(),mes:mk,status:'A Pagar'});setDespesas(nd);}
-  });
   let todas=getDespesas().filter(d=>d.mes===mk);
   let fc=document.getElementById('filtro-cat-desp').value,fr=document.getElementById('filtro-resp-desp').value,fs=document.getElementById('filtro-status-desp').value;
   if(fc)todas=todas.filter(d=>d.categoria===fc);
@@ -1631,15 +1712,16 @@ function renderConfig(){
 }
 function salvarCatsFixas(){
   let sel=CATEGORIAS.filter(c=>document.getElementById('cf-'+c.replace(/\//g,'-'))?.checked);
-  let d=D();d.catsFixas=sel;SD(d);showToast('Categorias salvas!');
+  setCatsFixas(sel);showToast('Categorias salvas!');
 }
 function salvarConfig(){
-  let d=D();(d.config=d.config||{}).t1=document.getElementById('cfg-t1').value;
-  d.config.t2=document.getElementById('cfg-t2').value;
-  d.config.metaPoup=parseFloat(document.getElementById('cfg-meta-poup').value)||0;
-  d.config.metaRes=parseFloat(document.getElementById('cfg-meta-res').value)||6;
-  SD(d);
-  document.getElementById('titulares-label').textContent=`${d.config.t1||'T1'} & ${d.config.t2||'T2'}`;
+  let cfg={...getConfig()};
+  cfg.t1=document.getElementById('cfg-t1').value;
+  cfg.t2=document.getElementById('cfg-t2').value;
+  cfg.metaPoup=parseFloat(document.getElementById('cfg-meta-poup').value)||0;
+  cfg.metaRes=parseFloat(document.getElementById('cfg-meta-res').value)||6;
+  setConfig(cfg);
+  document.getElementById('titulares-label').textContent=`${cfg.t1||'T1'} & ${cfg.t2||'T2'}`;
   showToast('Configurações salvas!');
 }
 function exportarJSON(){
