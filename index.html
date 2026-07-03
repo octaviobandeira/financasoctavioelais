@@ -624,8 +624,6 @@ const REF=db.ref('financas');
 let appData={};
 
 // ===== AUTENTICAÇÃO =====
-// O banco só é conectado DEPOIS que o login é confirmado pelo Firebase Auth.
-// As regras do Realtime Database devem exigir auth != null para leitura/escrita.
 function fazerLogin(){
   const email=document.getElementById('login-email').value.trim();
   const senha=document.getElementById('login-senha').value;
@@ -648,14 +646,12 @@ function fazerLogin(){
       erroEl.textContent=msg;
       erroEl.style.display='block';
     });
-  // Em caso de sucesso, onAuthStateChanged cuida da transição de tela.
 }
 function fazerLogout(){
   confirmar('Deseja realmente sair?',()=>{
     auth.signOut();
   });
 }
-// Permite pressionar Enter nos campos de login
 document.addEventListener('DOMContentLoaded',()=>{
   ['login-email','login-senha'].forEach(id=>{
     document.getElementById(id).addEventListener('keydown',e=>{
@@ -668,7 +664,6 @@ auth.onAuthStateChanged(user=>{
   const loginScreen=document.getElementById('login-screen');
   const appWrapper=document.getElementById('app-wrapper');
   if(user){
-    // Logado: esconde login, mostra app, conecta ao banco
     loginScreen.classList.add('hidden');
     appWrapper.classList.add('visible');
     document.getElementById('login-email').value='';
@@ -677,7 +672,6 @@ auth.onAuthStateChanged(user=>{
     document.getElementById('login-btn').textContent='Entrar';
     initFirebaseData();
   }else{
-    // Deslogado: mostra login, esconde app, para de ouvir o banco
     REF.off('value');
     loginScreen.classList.remove('hidden');
     appWrapper.classList.remove('visible');
@@ -696,7 +690,6 @@ function setSyncStatus(status,label){
 
 function initFirebaseData(){
   setSyncStatus('syncing','Conectando...');
-  // Escuta mudanças em tempo real — rerenderiza a página atual sempre que dados mudarem
   REF.on('value',snap=>{
     appData=snap.val()||{};
     setSyncStatus('online','Sincronizado ✓');
@@ -739,17 +732,12 @@ const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','
 let currentPage='dashboard', currentMes=new Date().getMonth()+1, currentAno=new Date().getFullYear();
 let charts={}, editInvId=null, editDespesaId=null, fechamentoStep=0, formRapidoAberto=false;
 
-// ===== DADOS COMPARTILHADOS (Firebase é a fonte de verdade; localStorage é só backup de leitura offline) =====
-// D() lê do appData em memória, que é preenchido pelo listener REF.on('value', ...) em initFirebaseData().
-// SD() escreve imediatamente em appData (síncrono, evita flicker na UI) e dispara saveDBFull() (assíncrono,
-// persiste no Firebase). Quando a escrita no Firebase confirma, o próprio listener re-renderiza com os dados
-// definitivos — então um eventual conflito de escrita simultânea entre os dois titulares se resolve sozinho
-// a favor do último save bem-sucedido, sem travar a interface no meio tempo.
+// ===== DADOS COMPARTILHADOS =====
 const LS_KEY='fd_backup_offline';
 const D=()=>appData||{};
 const SD=d=>{
   appData=d;
-  localStorage.setItem(LS_KEY,JSON.stringify(d)); // backup local, não é mais a fonte de leitura
+  localStorage.setItem(LS_KEY,JSON.stringify(d));
   saveDBFull();
 };
 const getConfig=()=>{let d=D();return d.config||{t1:'Titular 1',t2:'Titular 2',metaPoup:2000,metaRes:6};};
@@ -1030,6 +1018,7 @@ function renderCartoes(){
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-sm btn-primary" onclick="abrirModalLancamento('${c.id}')">+ Lançamento</button>
+          <button class="btn btn-sm btn-outline" onclick="toggleLancsCartao('${c.id}')">📋 Ver Lançamentos</button>
           ${lancsMes.length&&!fatPaga?`<button class="btn btn-sm btn-success" onclick="pagarFatura('${c.id}')">✅ Pagar</button>`:''}
           <button class="btn btn-sm btn-danger" onclick="excluirCartao('${c.id}')">🗑️</button>
         </div>
@@ -1053,8 +1042,44 @@ function renderCartoes(){
           <span>Total futuro</span><span style="color:var(--alert)">${fmtBRL(totalFut)}</span>
         </div>
       </div>`:`<div style="font-size:12px;color:#aaa;text-align:center;padding:8px 0">✅ Nenhuma parcela futura em aberto</div>`}
+      <div id="lancs-detalhe-${c.id}" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)"></div>
     </div>`;
   }).join(''):'<div class="card" style="text-align:center;padding:40px;color:#aaa"><div style="font-size:40px;margin-bottom:12px">💳</div><p>Nenhum cartão cadastrado.</p><button class="btn btn-primary" style="margin-top:12px" onclick="abrirModalCartao()">+ Cadastrar Cartão</button></div>';
+}
+function toggleLancsCartao(cartaoId){
+  let el=document.getElementById('lancs-detalhe-'+cartaoId);
+  if(!el)return;
+  let mostrar=el.style.display==='none';
+  el.style.display=mostrar?'block':'none';
+  if(mostrar)renderLancsDetalhe(cartaoId);
+}
+function renderLancsDetalhe(cartaoId){
+  let c=getCartoes().find(x=>x.id===cartaoId);if(!c)return;
+  let mk=mesK(currentAno,currentMes);
+  let lancs=(c.lancamentos||[]).filter(l=>l.mesRef===mk)
+    .sort((a,b)=>a.data.split('/').reverse().join('').localeCompare(b.data.split('/').reverse().join('')));
+  let el=document.getElementById('lancs-detalhe-'+cartaoId);
+  if(!el)return;
+  el.innerHTML=`<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🧾 Lançamentos de ${mesLabel(currentAno,currentMes)}</div>`+
+    (lancs.length?lancs.map(l=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:12px">
+        <div style="flex:1">
+          <div style="font-weight:600">${l.desc}${l.totalParcelas>1?` <span style="color:#888;font-weight:400">(${l.parcela}/${l.totalParcelas})</span>`:''}</div>
+          <div style="color:#888;font-size:11px">${l.data} · <span class="tag-cat" style="background:${CATS_CORES[l.categoria]||'#ccc'}20;color:${CATS_CORES[l.categoria]||'#888'}">${l.categoria}</span>${l.pago?' · <span style="color:var(--pos)">Pago</span>':''}</div>
+        </div>
+        <strong style="color:var(--neg)">${fmtBRL(l.valorParcela||l.valor)}</strong>
+        <button class="btn btn-sm btn-danger" onclick="excluirLancamento('${cartaoId}','${l.id}')" title="Excluir lançamento">🗑️</button>
+      </div>`).join(''):'<p style="color:#aaa;font-size:12px;text-align:center;padding:10px 0">Nenhum lançamento neste mês</p>');
+}
+function excluirLancamento(cartaoId,lancId){
+  confirmar('Excluir este lançamento? Se fizer parte de uma compra parcelada, apenas esta parcela será removida — as demais parcelas continuam lançadas.',()=>{
+    let cartoes=getCartoes(),c=cartoes.find(x=>x.id===cartaoId);if(!c)return;
+    c.lancamentos=c.lancamentos.filter(l=>l.id!==lancId);
+    setCartoes(cartoes);renderCartoes();
+    let el=document.getElementById('lancs-detalhe-'+cartaoId);
+    if(el){el.style.display='block';renderLancsDetalhe(cartaoId);}
+    showToast('Lançamento excluído!');
+  });
 }
 function abrirModalCartao(){['c-nome','c-limite','c-venc','c-fecha'].forEach(f=>document.getElementById(f).value='');abrirModal('modal-cartao');}
 function salvarCartao(){
@@ -1265,7 +1290,6 @@ function salvarInvsFechamento(){
   showToast('💾 Snapshot dos investimentos salvo automaticamente!');
 }
 function concluirFechamento(){
-  // Garante que o snapshot do mês entra no histórico ao concluir o fechamento.
   salvarInvsFechamento();
   let d=D();d.ultimoFechamento=mesK(currentAno,currentMes);SD(d);
   fechamentoStep=0;showToast(`✅ Fechamento de ${mesLabel(currentAno,currentMes)} concluído!`);renderFechamento();
@@ -1633,13 +1657,13 @@ function importarJSON(e){
       SD(parsed);showToast('Dados importados!');renderPage(currentPage);
     });
   };r.readAsText(f);
-  e.target.value=''; // permite reimportar o mesmo arquivo depois, se necessário
+  e.target.value='';
 }
 function limparDados(){
   confirmar('Apagar TODOS os dados do casal (Firebase)? Esta ação afeta os dois titulares e é irreversível!',()=>{
     localStorage.removeItem(LS_KEY);
     appData={};
-    SD({}); // grava objeto vazio no Firebase, propagando a limpeza para os dois logins
+    SD({});
     showToast('Dados apagados!');renderPage(currentPage);
   });
 }
@@ -1665,8 +1689,6 @@ document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click
 document.addEventListener('click',e=>{
   if(formRapidoAberto&&!document.getElementById('lancamento-rapido').contains(e.target))toggleFormRapido();
 });
-// Não chamamos initFirebaseData() aqui — isso agora é feito pelo onAuthStateChanged
-// somente após confirmação de login bem-sucedido.
 </script>
 </body>
 </html>
