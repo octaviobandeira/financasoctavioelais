@@ -206,10 +206,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
     <div class="card"><h3>Receitas vs Despesas (6 meses)</h3><div class="chart-wrap"><canvas id="chart-barras"></canvas></div></div>
     <div class="card"><h3>Categorias do Mês</h3><div class="chart-wrap"><canvas id="chart-pizza"></canvas></div></div>
   </div>
-  <div class="grid2">
-    <div class="card"><h3>Patrimônio (12 meses)</h3><div class="chart-wrap"><canvas id="chart-patrim"></canvas></div></div>
-    <div class="card"><h3>Carteira de Investimentos</h3><div class="chart-wrap"><canvas id="chart-carteira"></canvas></div></div>
-  </div>
+  <div class="card"><h3>Carteira de Investimentos</h3><div class="chart-wrap"><canvas id="chart-carteira"></canvas></div></div>
 </div>
 <!-- DRE -->
 <div id="page-dre" class="page">
@@ -886,9 +883,6 @@ function renderChartsDB(){
   getCartoes().forEach(c=>(c.lancamentos||[]).forEach(l=>{if(l.mesRef===mesK(currentAno,currentMes))catMap[l.categoria]=(catMap[l.categoria]||0)+(l.valorParcela||l.valor||0);}));
   let cats=Object.keys(catMap);
   if(cats.length)renderChart('chart-pizza','doughnut',cats,[{data:Object.values(catMap),backgroundColor:cats.map(c=>CATS_CORES[c]||'#95a5a6')}]);
-  let pVals=[],pLabels=[];
-  for(let i=11;i>=0;i--){let d=new Date(currentAno,currentMes-1-i,1);pLabels.push(mesLabel(d.getFullYear(),d.getMonth()+1));pVals.push(calcPatrimLiq()*Math.max(0.5,(12-i)/12));}pVals[11]=calcPatrimLiq();
-  renderChart('chart-patrim','line',pLabels,[{label:'Patrimônio',data:pVals,borderColor:'#2980b9',backgroundColor:'#2980b920',fill:true,tension:.4}]);
   let invMap={};getInvs().forEach(i=>{invMap[i.tipo]=(invMap[i.tipo]||0)+(i.atual||i.investido||0);});
   if(Object.keys(invMap).length)renderChart('chart-carteira','bar',Object.keys(invMap),[{label:'Valor (R$)',data:Object.values(invMap),backgroundColor:'#9b59b680'}],{indexAxis:'y'});
 }
