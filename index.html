@@ -6,7 +6,7 @@
 <title>Finanças do Casal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Firebase -->h
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -33,7 +33,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 #app-wrapper{display:none}
 #app-wrapper.visible{display:flex;width:100%}
 
-*{margin:0;padding:0;box-sizing:border-box}
 #sidebar{width:240px;background:var(--sidebar);min-height:100vh;position:fixed;left:0;top:0;z-index:100;transition:.3s;display:flex;flex-direction:column}
 #sidebar .logo{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 #sidebar .logo h2{color:#fff;font-size:16px;font-weight:700}
@@ -455,12 +454,12 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 </div></div>
 
 <div class="modal-overlay" id="modal-lancamento"><div class="modal">
-  <h3>💳 Novo Lançamento no Cartão</h3>
+  <h3 id="modal-lancamento-titulo">💳 Novo Lançamento no Cartão</h3>
   <div class="alert-box info" style="font-size:12px">💡 Lançamentos no cartão são contabilizados automaticamente no DRE.</div>
   <div class="form-group"><label>Cartão</label><select id="l-cartao"></select></div>
   <div class="form-row">
     <div class="form-group"><label>Data da Compra</label><input type="date" id="l-data"></div>
-    <div class="form-group"><label>Valor Total (R$)</label><input type="number" id="l-valor" step="0.01"></div>
+    <div class="form-group"><label id="l-valor-label">Valor Total (R$)</label><input type="number" id="l-valor" step="0.01"></div>
   </div>
   <div class="form-group">
     <label>Descrição</label>
@@ -741,6 +740,7 @@ const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','
 // ===== ESTADO =====
 let currentPage='dashboard', currentMes=new Date().getMonth()+1, currentAno=new Date().getFullYear();
 let charts={}, editInvId=null, editDespesaId=null, fechamentoStep=0, formRapidoAberto=false;
+let editLancamentoCartaoId=null, editLancamentoId=null;
 // BUG CORRIGIDO: renderCartoes() reconstrói todo o innerHTML a cada disparo
 // do listener do Firebase — inclusive por saves do outro titular em telas
 // não relacionadas. Sem este Set, o painel "Ver Lançamentos" que o usuário
@@ -770,7 +770,7 @@ const setTopKey=(key,v)=>{
 };
 const getConfig=()=>{let d=D();return d.config||{t1:'Titular 1',t2:'Titular 2',metaPoup:2000,metaRes:6};};
 const setConfig=v=>setTopKey('config',v);
-const getMes=(a,m)=>{let d=D();return d.meses?.[`${a}-${mp(m)}`]||{receitas:[],fixas:[],variaveis:[]};};
+const getMes=(a,m)=>{let d=D();return d.meses?.[`${a}-${mp(m)}`]||{};};
 const setMes=(a,m,v)=>{
   let d=D();(d.meses=d.meses||{})[`${a}-${mp(m)}`]=v;appData=d;
   localStorage.setItem(LS_KEY,JSON.stringify(d));
@@ -921,10 +921,11 @@ const FIX_DEF=[{desc:'Aluguel',valor:0},{desc:'Condomínio',valor:0},{desc:'Esco
 const VAR_DEF=[{desc:'Supermercado',valor:0},{desc:'Combustível',valor:0},{desc:'Farmácia',valor:0},{desc:'Lazer',valor:0}];
 function renderDRE(){
   setSubtitle('dre-subtitle');
-  let mes=getMes(currentAno,currentMes);
-  if(!mes.receitas?.length)mes.receitas=JSON.parse(JSON.stringify(REC_DEF));
-  if(!mes.fixas?.length)mes.fixas=JSON.parse(JSON.stringify(FIX_DEF));
-  if(!mes.variaveis?.length)mes.variaveis=JSON.parse(JSON.stringify(VAR_DEF));
+  let mes=getMes(currentAno,currentMes),precisaSalvar=false;
+  if(mes.receitas===undefined){mes.receitas=JSON.parse(JSON.stringify(REC_DEF));precisaSalvar=true;}
+  if(mes.fixas===undefined){mes.fixas=JSON.parse(JSON.stringify(FIX_DEF));precisaSalvar=true;}
+  if(mes.variaveis===undefined){mes.variaveis=JSON.parse(JSON.stringify(VAR_DEF));precisaSalvar=true;}
+  if(precisaSalvar)setMes(currentAno,currentMes,mes);
   renderLinhasDRE('receitas-lista',mes.receitas,'r');
   renderLinhasDRE('fixas-lista',mes.fixas,'f');
   renderLinhasDRE('variaveis-lista',mes.variaveis,'v');
@@ -1108,6 +1109,7 @@ function renderLancsDetalhe(cartaoId){
           <div style="color:#888;font-size:11px">${l.data} · <span class="tag-cat" style="background:${CATS_CORES[l.categoria]||'#ccc'}20;color:${CATS_CORES[l.categoria]||'#888'}">${l.categoria}</span>${l.pago?' · <span style="color:var(--pos)">Pago</span>':''}</div>
         </div>
         <strong style="color:var(--neg)">${fmtBRL(l.valorParcela||l.valor)}</strong>
+        <button class="btn btn-sm btn-outline" onclick="editarLancamento('${cartaoId}','${l.id}')" title="Editar lançamento">✏️</button>
         <button class="btn btn-sm btn-danger" onclick="excluirLancamento('${cartaoId}','${l.id}')" title="Excluir lançamento">🗑️</button>
       </div>`).join(''):'<p style="color:#aaa;font-size:12px;text-align:center;padding:10px 0">Nenhum lançamento neste mês</p>');
 }
@@ -1130,18 +1132,43 @@ function salvarCartao(){
 }
 function excluirCartao(id){confirmar('Excluir este cartão?',()=>{setCartoes(getCartoes().filter(c=>c.id!==id));renderCartoes();});}
 function abrirModalLancamento(cartaoId){
-  document.getElementById('l-data').value=new Date().toISOString().split('T')[0];
+  editLancamentoCartaoId=null;editLancamentoId=null;
+  document.getElementById('modal-lancamento-titulo').textContent='💳 Novo Lançamento no Cartão';
+  document.getElementById('l-valor-label').textContent='Valor Total (R$)';
+  document.getElementById('l-parcelas').closest('.form-group').style.display='';
+  document.getElementById('l-data').disabled=false;document.getElementById('l-data').title='';document.getElementById('l-data').value=new Date().toISOString().split('T')[0];
   ['l-valor','l-desc'].forEach(f=>document.getElementById(f).value='');
   document.getElementById('l-parcelas').value='1';document.getElementById('l-parcelas-preview').textContent='';
-  document.getElementById('l-recorrente').checked=false;document.getElementById('sugestao-cat').style.display='none';
+  document.getElementById('l-recorrente').checked=false;document.getElementById('l-recorrente').disabled=false;document.getElementById('sugestao-cat').style.display='none';
   let cartoes=getCartoes();if(!cartoes.length)return alert('Cadastre um cartão primeiro.');
   document.getElementById('l-cartao').innerHTML=cartoes.map(c=>`<option value="${c.id}" ${c.id===cartaoId?'selected':''}>${c.nome}</option>`).join('');
   document.getElementById('l-cat').innerHTML=CATEGORIAS.map(c=>`<option>${c}</option>`).join('');
   ['l-valor','l-parcelas','l-data'].forEach(id=>{let el=document.getElementById(id);el.removeEventListener('input',atualizarPreviewParcelas);el.addEventListener('input',atualizarPreviewParcelas);});
   abrirModal('modal-lancamento');
 }
+function editarLancamento(cartaoId,lancId){
+  let c=getCartoes().find(x=>x.id===cartaoId);if(!c)return;
+  let l=c.lancamentos.find(x=>x.id===lancId);if(!l)return;
+  editLancamentoCartaoId=cartaoId;editLancamentoId=lancId;
+  document.getElementById('modal-lancamento-titulo').textContent='✏️ Editar Lançamento'+(l.totalParcelas>1?` (parcela ${l.parcela}/${l.totalParcelas})`:'');
+  document.getElementById('l-valor-label').textContent=l.totalParcelas>1?'Valor da Parcela (R$)':'Valor (R$)';
+  document.getElementById('l-cartao').innerHTML=getCartoes().map(c2=>`<option value="${c2.id}" ${c2.id===cartaoId?'selected':''}>${c2.nome}</option>`).join('');
+  document.getElementById('l-cat').innerHTML=CATEGORIAS.map(cat=>`<option ${cat===l.categoria?'selected':''}>${cat}</option>`).join('');
+  document.getElementById('l-data').value=l.data.split('/').reverse().join('-');
+  document.getElementById('l-data').disabled=l.totalParcelas>1;
+  document.getElementById('l-data').title=l.totalParcelas>1?'A data de cada parcela é fixada na criação da compra parcelada':'';
+  document.getElementById('l-valor').value=l.valorParcela||l.valor;
+  document.getElementById('l-desc').value=l.desc;
+  document.getElementById('l-parcelas').value='1';
+  document.getElementById('l-parcelas').closest('.form-group').style.display='none';
+  document.getElementById('l-parcelas-preview').textContent='';
+  document.getElementById('l-recorrente').checked=l.recorrente||false;
+  document.getElementById('l-recorrente').disabled=l.totalParcelas>1;
+  document.getElementById('sugestao-cat').style.display='none';
+  abrirModal('modal-lancamento');
+}
 function atualizarPreviewParcelas(){
-  let v=parseFloat(document.getElementById('l-valor').value)||0,p=parseInt(document.getElementById('l-parcelas').value)||1,data=document.getElementById('l-data').value;
+  let v=parseFloat(document.getElementById('l-valor').value)||0,p=Math.max(1,parseInt(document.getElementById('l-parcelas').value)||1),data=document.getElementById('l-data').value;
   if(!v||!data){document.getElementById('l-parcelas-preview').textContent='';return;}
   let d=new Date(data+'T12:00:00'),msgs=[];
   for(let i=0;i<Math.min(p,4);i++){let dd=new Date(d.getFullYear(),d.getMonth()+i,1);msgs.push(`${mesLabel(dd.getFullYear(),dd.getMonth()+1)}: ${fmtBRL(v/p)}`);}
@@ -1162,10 +1189,29 @@ function salvarLancamento(){
   let cartId=document.getElementById('l-cartao').value,data=document.getElementById('l-data').value;
   if(!data)return alert('Informe a data');
   let valor=parseFloat(document.getElementById('l-valor').value)||0,desc=document.getElementById('l-desc').value.trim();
-  let cat=document.getElementById('l-cat').value,parc=parseInt(document.getElementById('l-parcelas').value)||1;
+  let cat=document.getElementById('l-cat').value,parc=Math.max(1,parseInt(document.getElementById('l-parcelas').value)||1);
   let recorrente=document.getElementById('l-recorrente').checked;
   if(!desc)return alert('Informe a descrição');if(!valor)return alert('Informe o valor');
-  let cartoes=getCartoes(),c=cartoes.find(x=>x.id===cartId);if(!c)return;
+  let cartoes=getCartoes();
+
+  if(editLancamentoId){
+    let origem=cartoes.find(x=>x.id===editLancamentoCartaoId);if(!origem)return;
+    let l=origem.lancamentos.find(x=>x.id===editLancamentoId);if(!l)return;
+    l.data=data.split('-').reverse().join('/');l.desc=desc;l.categoria=cat;
+    l.valorParcela=valor;if(l.totalParcelas===1)l.valor=valor;
+    l.recorrente=recorrente&&l.totalParcelas===1;
+    if(l.totalParcelas===1){let dd=new Date(data+'T12:00:00');l.mesRef=mesK(dd.getFullYear(),dd.getMonth()+1);}
+    if(cartId!==editLancamentoCartaoId){
+      let destino=cartoes.find(x=>x.id===cartId);if(!destino)return;
+      origem.lancamentos=origem.lancamentos.filter(x=>x.id!==editLancamentoId);
+      destino.lancamentos.push(l);
+    }
+    setCartoes(cartoes);fecharModal('modal-lancamento');renderCartoes();showToast('Lançamento atualizado!');
+    editLancamentoCartaoId=null;editLancamentoId=null;
+    return;
+  }
+
+  let c=cartoes.find(x=>x.id===cartId);if(!c)return;
   let d=new Date(data+'T12:00:00');
   for(let p=0;p<parc;p++){
     let dd=new Date(d.getFullYear(),d.getMonth()+p,d.getDate());
