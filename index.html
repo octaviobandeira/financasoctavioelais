@@ -536,7 +536,7 @@ label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:block}
 </div></div>
 
 <div class="modal-overlay" id="modal-passivo"><div class="modal">
-  <h3>📉 Cadastrar Passivo</h3>
+  <h3 id="modal-passivo-titulo">📉 Cadastrar Passivo</h3>
   <div class="form-group"><label>Descrição</label><input type="text" id="ps-desc"></div>
   <div class="form-row">
     <div class="form-group"><label>Tipo</label><select id="ps-tipo"><option>Financiamento Imóvel</option><option>Financiamento Veículo</option><option>Empréstimo</option><option>Outro</option></select></div>
@@ -732,14 +732,14 @@ function saveDBFull(){
 }
 
 // ===== CONSTANTES =====
-const CATEGORIAS=['Alimentação','Supermercado','Restaurante/Delivery','Saúde/Farmácia','Transporte/Combustível','Lazer/Entretenimento','Vestuário','Educação','Casa/Manutenção','Streaming/Assinatura','Viagem','Transferência','Saque','Pagamento de Fatura','Investimento','Salário','Renda Extra','Outros'];
-const CATS_CORES={'Alimentação':'#27ae60','Supermercado':'#2ecc71','Restaurante/Delivery':'#e67e22','Saúde/Farmácia':'#e74c3c','Transporte/Combustível':'#8e44ad','Lazer/Entretenimento':'#3498db','Vestuário':'#f39c12','Educação':'#1abc9c','Casa/Manutenção':'#95a5a6','Streaming/Assinatura':'#9b59b6','Viagem':'#16a085','Transferência':'#7f8c8d','Saque':'#c0392b','Pagamento de Fatura':'#2980b9','Investimento':'#27ae60','Salário':'#2ecc71','Renda Extra':'#f1c40f','Outros':'#bdc3c7'};
-const CATS_FIXAS_DEFAULT=['Casa/Manutenção','Streaming/Assinatura','Educação','Saúde/Farmácia','Pagamento de Fatura'];
+const CATEGORIAS=['Alimentação','Supermercado','Restaurante/Delivery','Saúde/Farmácia','Transporte/Combustível','Lazer/Entretenimento','Vestuário','Educação','Casa/Manutenção','Faxineira/Diarista','Streaming/Assinatura','Viagem','Transferência','Saque','Pagamento de Fatura','Investimento','Salário','Renda Extra','Outros'];
+const CATS_CORES={'Alimentação':'#27ae60','Supermercado':'#2ecc71','Restaurante/Delivery':'#e67e22','Saúde/Farmácia':'#e74c3c','Transporte/Combustível':'#8e44ad','Lazer/Entretenimento':'#3498db','Vestuário':'#f39c12','Educação':'#1abc9c','Casa/Manutenção':'#95a5a6','Faxineira/Diarista':'#d35400','Streaming/Assinatura':'#9b59b6','Viagem':'#16a085','Transferência':'#7f8c8d','Saque':'#c0392b','Pagamento de Fatura':'#2980b9','Investimento':'#27ae60','Salário':'#2ecc71','Renda Extra':'#f1c40f','Outros':'#bdc3c7'};
+const CATS_FIXAS_DEFAULT=['Casa/Manutenção','Faxineira/Diarista','Streaming/Assinatura','Educação','Saúde/Farmácia','Pagamento de Fatura'];
 const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 // ===== ESTADO =====
 let currentPage='dashboard', currentMes=new Date().getMonth()+1, currentAno=new Date().getFullYear();
-let charts={}, editInvId=null, editDespesaId=null, fechamentoStep=0, formRapidoAberto=false;
+let charts={}, editInvId=null, editDespesaId=null, editPassivoId=null, fechamentoStep=0, formRapidoAberto=false;
 let editLancamentoCartaoId=null, editLancamentoId=null;
 // BUG CORRIGIDO: renderCartoes() reconstrói todo o innerHTML a cada disparo
 // do listener do Firebase — inclusive por saves do outro titular em telas
@@ -1633,15 +1633,37 @@ function renderPatrimonio(){
   document.getElementById('patrim-val').style.color=patrim>=0?'var(--pos)':'var(--neg)';
   document.getElementById('endividamento-sem').innerHTML=`<div style="text-align:center;padding:16px"><div style="font-size:36px">${endiv<30?'🟢':endiv<60?'🟡':'🔴'}</div><div style="font-size:24px;font-weight:700;margin:8px 0">${fmtPct(endiv)}</div><div style="font-size:12px;color:#888">Ideal: abaixo de 30%</div></div>`;
   document.getElementById('ativos-lista').innerHTML=ativos.map(a=>`<div class="dre-row"><div class="desc">${a.descricao} <span class="badge info">${a.tipo}</span></div><div style="font-weight:600;color:var(--pos)">${fmtBRL(a.valor)}</div><button onclick="excluirAtivo('${a.id}')" style="background:none;border:none;cursor:pointer;color:#e74c3c">🗑️</button></div>`).join('')+`<div class="dre-row"><div class="desc">Investimentos</div><div style="font-weight:600;color:var(--pos)">${fmtBRL(tInv)}</div></div><div class="dre-total"><span>Total Ativos</span><span style="color:var(--pos)">${fmtBRL(tAtivos)}</span></div>`;
-  document.getElementById('passivos-lista').innerHTML=passivos.map(p=>`<div class="dre-row"><div class="desc">${p.descricao} <span class="badge neg">${p.tipo}</span></div><div style="font-weight:600;color:var(--neg)">${fmtBRL(p.saldo)}</div><button onclick="excluirPassivo('${p.id}')" style="background:none;border:none;cursor:pointer;color:#e74c3c">🗑️</button></div>`).join('')+`<div class="dre-total"><span>Total Passivos</span><span style="color:var(--neg)">${fmtBRL(tPassivos)}</span></div>`;
+  document.getElementById('passivos-lista').innerHTML=passivos.map(p=>`<div class="dre-row"><div class="desc">${p.descricao} <span class="badge neg">${p.tipo}</span></div><div style="font-weight:600;color:var(--neg)">${fmtBRL(p.saldo)}</div><button onclick="editarPassivo('${p.id}')" style="background:none;border:none;cursor:pointer;color:#888">✏️</button><button onclick="excluirPassivo('${p.id}')" style="background:none;border:none;cursor:pointer;color:#e74c3c">🗑️</button></div>`).join('')+`<div class="dre-total"><span>Total Passivos</span><span style="color:var(--neg)">${fmtBRL(tPassivos)}</span></div>`;
   let pLabels=[],pVals=[];for(let i=11;i>=0;i--){let d=new Date(currentAno,currentMes-1-i,1);pLabels.push(mesLabel(d.getFullYear(),d.getMonth()+1));pVals.push(patrim*Math.max(0.5,(12-i)/12));}pVals[11]=patrim;
   renderChart('chart-patrim2','line',pLabels,[{label:'Patrimônio',data:pVals,borderColor:'#2980b9',backgroundColor:'#2980b920',fill:true,tension:.4}]);
 }
 function abrirModalAtivo(){document.getElementById('at-desc').value='';document.getElementById('at-val').value='';abrirModal('modal-ativo');}
 function salvarAtivo(){let desc=document.getElementById('at-desc').value.trim();if(!desc)return alert('Informe a descrição');let a=getAtivos();a.push({id:geraId(),descricao:desc,tipo:document.getElementById('at-tipo').value,valor:parseFloat(document.getElementById('at-val').value)||0});setAtivos(a);fecharModal('modal-ativo');renderPatrimonio();}
 function excluirAtivo(id){confirmar('Excluir ativo?',()=>{setAtivos(getAtivos().filter(a=>a.id!==id));renderPatrimonio();});}
-function abrirModalPassivo(){document.getElementById('ps-desc').value='';document.getElementById('ps-val').value='';document.getElementById('ps-parcela').value='';abrirModal('modal-passivo');}
-function salvarPassivo(){let desc=document.getElementById('ps-desc').value.trim();if(!desc)return alert('Informe a descrição');let p=getPassivos();p.push({id:geraId(),descricao:desc,tipo:document.getElementById('ps-tipo').value,saldo:parseFloat(document.getElementById('ps-val').value)||0,parcela:parseFloat(document.getElementById('ps-parcela').value)||0});setPassivos(p);fecharModal('modal-passivo');renderPatrimonio();}
+function abrirModalPassivo(id=null){
+  editPassivoId=id;
+  if(id){
+    let p=getPassivos().find(x=>x.id===id);if(!p)return;
+    document.getElementById('modal-passivo-titulo').textContent='✏️ Editar Passivo';
+    document.getElementById('ps-desc').value=p.descricao;
+    document.getElementById('ps-tipo').value=p.tipo;
+    document.getElementById('ps-val').value=p.saldo;
+    document.getElementById('ps-parcela').value=p.parcela||'';
+  }else{
+    document.getElementById('modal-passivo-titulo').textContent='📉 Cadastrar Passivo';
+    document.getElementById('ps-desc').value='';document.getElementById('ps-val').value='';document.getElementById('ps-parcela').value='';
+  }
+  abrirModal('modal-passivo');
+}
+function editarPassivo(id){abrirModalPassivo(id);}
+function salvarPassivo(){
+  let desc=document.getElementById('ps-desc').value.trim();if(!desc)return alert('Informe a descrição');
+  let obj={id:editPassivoId||geraId(),descricao:desc,tipo:document.getElementById('ps-tipo').value,saldo:parseFloat(document.getElementById('ps-val').value)||0,parcela:parseFloat(document.getElementById('ps-parcela').value)||0};
+  let p=getPassivos();
+  if(editPassivoId){let idx=p.findIndex(x=>x.id===editPassivoId);if(idx>=0)p[idx]=obj;}
+  else p.push(obj);
+  setPassivos(p);fecharModal('modal-passivo');renderPatrimonio();
+}
 function excluirPassivo(id){confirmar('Excluir passivo?',()=>{setPassivos(getPassivos().filter(p=>p.id!==id));renderPatrimonio();});}
 
 // ===== DESPESAS =====
