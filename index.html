@@ -847,6 +847,17 @@ function calcFaturaDetalhada(a,m){
   getCartoes().forEach(c=>(c.lancamentos||[]).filter(l=>l.mesRef===mesK(a,m)).forEach(l=>{let v=l.valorParcela||l.valor||0,cat=l.categoria,g=cf.has(cat)?'fixa':'variavel';map[g][cat]=(map[g][cat]||0)+v;}));
   return map;
 }
+function calcDespesaCasaTotal(a,m){let mk=mesK(a,m);return getDespesas().filter(d=>d.mes===mk).reduce((s,d)=>s+(d.valor||0),0);}
+function calcDespesaCasaFixaVariavel(a,m){
+  let mk=mesK(a,m),cf=getCatsFixas(),fixa=0,variavel=0;
+  getDespesas().filter(d=>d.mes===mk).forEach(d=>{let v=d.valor||0;cf.has(d.categoria)?fixa+=v:variavel+=v;});
+  return{fixa,variavel};
+}
+function calcDespesaCasaDetalhada(a,m){
+  let mk=mesK(a,m),cf=getCatsFixas(),map={fixa:{},variavel:{}};
+  getDespesas().filter(d=>d.mes===mk).forEach(d=>{let v=d.valor||0,cat=d.categoria||'Outros',g=cf.has(cat)?'fixa':'variavel';map[g][cat]=(map[g][cat]||0)+v;});
+  return map;
+}
 function calcTotalInvestido(){return getInvs().reduce((s,i)=>s+(i.atual||i.investido||0),0);}
 function calcPatrimLiq(){
   let ativos=getAtivos().reduce((s,a)=>s+(a.valor||0),0)+calcTotalInvestido();
@@ -868,8 +879,8 @@ function calcGastoCategoria(cat,a,m){
 // ===== DASHBOARD =====
 function renderDashboard(){
   setSubtitle('dash-subtitle');
-  const rec=calcRec(currentAno,currentMes),fix=calcFix(currentAno,currentMes),vari=calcVar(currentAno,currentMes),fat=calcFaturaTotal(currentAno,currentMes);
-  const desp=fix+vari+fat,result=rec-desp,patrim=calcPatrimLiq(),cfg=getConfig();
+  const rec=calcRec(currentAno,currentMes),fix=calcFix(currentAno,currentMes),vari=calcVar(currentAno,currentMes),fat=calcFaturaTotal(currentAno,currentMes),dc=calcDespesaCasaTotal(currentAno,currentMes);
+  const desp=fix+vari+fat+dc,result=rec-desp,patrim=calcPatrimLiq(),cfg=getConfig();
   const totalAberto=getCartoes().reduce((s,c)=>s+(c.lancamentos||[]).filter(l=>!l.pago).reduce((x,l)=>x+(l.valorParcela||l.valor||0),0),0);
   document.getElementById('kpis-dash').innerHTML=`
     <div class="kpi"><div class="label">Receita do Mês</div><div class="val pos">${fmtBRL(rec)}</div></div>
@@ -899,7 +910,7 @@ function renderDashboard(){
 }
 function renderChartsDB(){
   let labels=[],recs=[],desps=[];
-  for(let i=5;i>=0;i--){let d=new Date(currentAno,currentMes-1-i,1),a=d.getFullYear(),m=d.getMonth()+1;labels.push(mesLabel(a,m));recs.push(calcRec(a,m));desps.push(calcFix(a,m)+calcVar(a,m)+calcFaturaTotal(a,m));}
+  for(let i=5;i>=0;i--){let d=new Date(currentAno,currentMes-1-i,1),a=d.getFullYear(),m=d.getMonth()+1;labels.push(mesLabel(a,m));recs.push(calcRec(a,m));desps.push(calcFix(a,m)+calcVar(a,m)+calcFaturaTotal(a,m)+calcDespesaCasaTotal(a,m));}
   renderChart('chart-barras','bar',labels,[{label:'Receitas',data:recs,backgroundColor:'#27ae6080'},{label:'Despesas',data:desps,backgroundColor:'#e74c3c80'}]);
   let catMap={};
   getDespesas().filter(d=>d.mes===mesK(currentAno,currentMes)).forEach(d=>{catMap[d.categoria]=(catMap[d.categoria]||0)+(d.valor||0);});
@@ -968,13 +979,18 @@ function atualizarTotaisDRE(){
   let tfat=calcFaturaTotal(currentAno,currentMes);
   let fv=calcFaturaFixaVariavel(currentAno,currentMes);
   let det=calcFaturaDetalhada(currentAno,currentMes);
-  let tdesp=tfix+tvar+tfat,result=trec-tdesp;
-  let tFixTotal=tfix+fv.fixa,tVarTotal=tvar+fv.variavel;
+  let tdc=calcDespesaCasaTotal(currentAno,currentMes);
+  let dcfv=calcDespesaCasaFixaVariavel(currentAno,currentMes);
+  let dcdet=calcDespesaCasaDetalhada(currentAno,currentMes);
+  let tdesp=tfix+tvar+tfat+tdc,result=trec-tdesp;
+  let tFixTotal=tfix+fv.fixa+dcfv.fixa,tVarTotal=tvar+fv.variavel+dcfv.variavel;
   document.getElementById('total-receitas-lbl').textContent=fmtBRL(trec);
   document.getElementById('total-fixas-lbl').textContent=fmtBRL(tfix);
   document.getElementById('total-variaveis-lbl').textContent=fmtBRL(tvar);
   let fixLines=Object.entries(det.fixa).map(([c,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 6px;color:#555;font-size:12px"><span>🔒 ${c}</span><span>${fmtBRL(v)}</span></div>`).join('');
   let varLines=Object.entries(det.variavel).map(([c,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 6px;color:#555;font-size:12px"><span>🔄 ${c}</span><span>${fmtBRL(v)}</span></div>`).join('');
+  let dcFixLines=Object.entries(dcdet.fixa).map(([c,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 6px;color:#555;font-size:12px"><span>🔒 ${c}</span><span>${fmtBRL(v)}</span></div>`).join('');
+  let dcVarLines=Object.entries(dcdet.variavel).map(([c,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 6px;color:#555;font-size:12px"><span>🔄 ${c}</span><span>${fmtBRL(v)}</span></div>`).join('');
   document.getElementById('dre-resumo').innerHTML=`
     <div class="dre-total" style="background:#e8f8f0"><span>Total Receitas</span><span style="color:var(--pos)">${fmtBRL(trec)}</span></div>
     <div class="dre-total" style="margin-top:4px"><span>Despesas Fixas (DRE)</span><span style="color:var(--neg)">${fmtBRL(tfix)}</span></div>
@@ -989,6 +1005,18 @@ function atualizarTotaisDRE(){
         ${varLines?`<div style="font-weight:600;font-size:11px;color:#888;margin-top:8px;margin-bottom:4px">Variáveis no Cartão — ${fmtBRL(fv.variavel)}</div>${varLines}`:''}
         ${!fixLines&&!varLines?'<span style="color:#aaa;font-size:12px">Nenhum lançamento neste mês</span>':''}
         <div style="font-size:10px;color:#bbb;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">Classifique em Configurações → Categorias Fixas no Cartão</div>
+      </div>
+    </div>
+    <div style="margin-top:4px">
+      <div class="dre-total" style="cursor:pointer;user-select:none" onclick="toggleDespCasaDet()">
+        <span>🏠 Despesas da Casa <span id="despcasa-hint" style="font-size:10px;color:#aaa;font-weight:400">▼ detalhes</span></span>
+        <span style="color:var(--neg)">${fmtBRL(tdc)}</span>
+      </div>
+      <div id="despcasa-detalhe" style="display:none;background:#f7f9fc;border-radius:0 0 8px 8px;padding:8px 10px;margin-top:2px">
+        ${dcFixLines?`<div style="font-weight:600;font-size:11px;color:#888;margin-bottom:4px">Fixas — ${fmtBRL(dcfv.fixa)}</div>${dcFixLines}`:''}
+        ${dcVarLines?`<div style="font-weight:600;font-size:11px;color:#888;margin-top:8px;margin-bottom:4px">Variáveis — ${fmtBRL(dcfv.variavel)}</div>${dcVarLines}`:''}
+        ${!dcFixLines&&!dcVarLines?'<span style="color:#aaa;font-size:12px">Nenhuma despesa neste mês</span>':''}
+        <div style="font-size:10px;color:#bbb;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">Lançamentos feitos em Despesas da Casa entram aqui automaticamente</div>
       </div>
     </div>
     <div class="dre-total" style="margin-top:4px;background:${result>=0?'#e8f8f0':'#fdecea'}">
@@ -1006,16 +1034,17 @@ function atualizarTotaisDRE(){
     <div style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Comprometimento Fixo</span><span style="font-weight:600">${fmtPct(compFix)}</span></div>
       <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(compFix,100)}%;background:${compFix<50?'var(--pos)':compFix<70?'var(--alert)':'var(--neg)'}"></div></div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tfix)} + Cartão ${fmtBRL(fv.fixa)} = ${fmtBRL(tFixTotal)}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tfix)} + Cartão ${fmtBRL(fv.fixa)} + Casa ${fmtBRL(dcfv.fixa)} = ${fmtBRL(tFixTotal)}</div>
     </div>
     <div>
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Comprometimento Variável</span><span style="font-weight:600">${fmtPct(compVar)}</span></div>
       <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(compVar,100)}%;background:${compVar<30?'var(--pos)':compVar<50?'var(--alert)':'var(--neg)'}"></div></div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tvar)} + Cartão ${fmtBRL(fv.variavel)} = ${fmtBRL(tVarTotal)}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px">DRE ${fmtBRL(tvar)} + Cartão ${fmtBRL(fv.variavel)} + Casa ${fmtBRL(dcfv.variavel)} = ${fmtBRL(tVarTotal)}</div>
     </div>
   `;
 }
 function toggleFatDet(){let el=document.getElementById('fat-detalhe'),h=document.getElementById('fat-hint');let open=el.style.display==='none';el.style.display=open?'block':'none';h.textContent=open?'▲ fechar':'▼ detalhes';}
+function toggleDespCasaDet(){let el=document.getElementById('despcasa-detalhe'),h=document.getElementById('despcasa-hint');let open=el.style.display==='none';el.style.display=open?'block':'none';h.textContent=open?'▲ fechar':'▼ detalhes';}
 function salvarDRE(){showToast('DRE salvo!');}
 function copiarMesAnterior(){
   let ant=mesAnt(currentAno,currentMes),prev=getMes(ant.a,ant.m),atual=getMes(currentAno,currentMes);
@@ -1387,9 +1416,9 @@ function renderFechamento(){
 }
 function stepFech(d){fechamentoStep=Math.max(0,Math.min(STEPS_FECH.length-1,fechamentoStep+d));renderFechamento();}
 function gerarConteudoStep(step){
-  let rec=calcRec(currentAno,currentMes),fix=calcFix(currentAno,currentMes),vari=calcVar(currentAno,currentMes),fat=calcFaturaTotal(currentAno,currentMes);
-  let desp=fix+vari+fat,result=rec-desp;
-  let ant=mesAnt(currentAno,currentMes),recAnt=calcRec(ant.a,ant.m),despAnt=calcFix(ant.a,ant.m)+calcVar(ant.a,ant.m)+calcFaturaTotal(ant.a,ant.m);
+  let rec=calcRec(currentAno,currentMes),fix=calcFix(currentAno,currentMes),vari=calcVar(currentAno,currentMes),fat=calcFaturaTotal(currentAno,currentMes),dc=calcDespesaCasaTotal(currentAno,currentMes);
+  let desp=fix+vari+fat+dc,result=rec-desp;
+  let ant=mesAnt(currentAno,currentMes),recAnt=calcRec(ant.a,ant.m),despAnt=calcFix(ant.a,ant.m)+calcVar(ant.a,ant.m)+calcFaturaTotal(ant.a,ant.m)+calcDespesaCasaTotal(ant.a,ant.m);
   switch(step){
     case 0:return`<div style="display:flex;gap:16px;flex-wrap:wrap"><div class="kpi"><div class="label">Receita Total</div><div class="val pos">${fmtBRL(rec)}</div></div><div class="kpi"><div class="label">Mês Anterior</div><div class="val">${fmtBRL(recAnt)}</div></div><div class="kpi"><div class="label">Variação</div><div class="val ${rec>=recAnt?'pos':'neg'}">${rec>=recAnt?'+':''}${fmtPct((rec-recAnt)/Math.max(recAnt,1)*100)}</div></div></div><div style="margin-top:16px"><button class="btn btn-outline" onclick="showPage('dre')">📋 Ir para o DRE</button></div>`;
     case 1:return getCartoes().map(c=>{let lans=c.lancamentos.filter(l=>l.mesRef===mesK(currentAno,currentMes)),pago=lans.length>0&&lans.every(l=>l.pago);return`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)"><div><strong>${c.nome}</strong> <span class="badge ${pago?'pos':'alert'}">${pago?'✅ Paga':'Em aberto'}</span></div><strong style="color:${pago?'var(--pos)':'var(--neg)'}">${fmtBRL(calcFaturaCartao(c,currentAno,currentMes))}</strong></div>`;}).join('')||'<p style="color:#aaa">Nenhum cartão cadastrado</p>';
@@ -1536,7 +1565,7 @@ function renderInvestimentos(){
     tabEl.innerHTML='<p style="color:#aaa;font-size:13px;text-align:center;padding:20px 0">Nenhum snapshot registrado ainda.</p>';
   }
 
-  let cfg=getConfig(),tDesp=calcFix(currentAno,currentMes)+calcVar(currentAno,currentMes)+calcFaturaTotal(currentAno,currentMes);
+  let cfg=getConfig(),tDesp=calcFix(currentAno,currentMes)+calcVar(currentAno,currentMes)+calcFaturaTotal(currentAno,currentMes)+calcDespesaCasaTotal(currentAno,currentMes);
   let resIdeal=(cfg.metaRes||6)*tDesp,resAtual=invs.filter(i=>i.objetivo==='Reserva Emergência').reduce((s,i)=>s+(i.atual||i.investido||0),0);
   let mR=tDesp>0?resAtual/tDesp:0;
   document.getElementById('reserva-prog').innerHTML=`
@@ -1713,8 +1742,8 @@ function excluirDespesa(id){confirmar('Excluir despesa?',()=>{setDespesas(getDes
 // ===== INTELIGÊNCIA =====
 function renderInteligencia(){
   setSubtitle('intel-subtitle');
-  let rec=calcRec(currentAno,currentMes),fix=calcFix(currentAno,currentMes),vari=calcVar(currentAno,currentMes),fat=calcFaturaTotal(currentAno,currentMes);
-  let desp=fix+vari+fat,result=rec-desp,poup=rec>0?result/rec*100:0;
+  let rec=calcRec(currentAno,currentMes),fix=calcFix(currentAno,currentMes),vari=calcVar(currentAno,currentMes),fat=calcFaturaTotal(currentAno,currentMes),dc=calcDespesaCasaTotal(currentAno,currentMes);
+  let desp=fix+vari+fat+dc,result=rec-desp,poup=rec>0?result/rec*100:0;
   let reserva=getInvs().filter(i=>i.objetivo==='Reserva Emergência').reduce((s,i)=>s+(i.atual||i.investido||0),0);
   let mesesRes=desp>0?reserva/desp:0;
   let tCartao=getCartoes().reduce((s,c)=>s+(c.lancamentos||[]).filter(l=>!l.pago).reduce((x,l)=>x+(l.valorParcela||l.valor||0),0),0);
@@ -1723,7 +1752,8 @@ function renderInteligencia(){
   let tAtivos=getAtivos().reduce((s,a)=>s+(a.valor||0),0)+calcTotalInvestido();
   let endiv=tAtivos>0?tPassivos/tAtivos*100:0,tiposInv=[...new Set(getInvs().map(i=>i.tipo))].length;
   let fv=calcFaturaFixaVariavel(currentAno,currentMes);
-  let compFix=rec>0?(fix+fv.fixa)/rec*100:0,compVar=rec>0?(vari+fv.variavel)/rec*100:0;
+  let dcfv=calcDespesaCasaFixaVariavel(currentAno,currentMes);
+  let compFix=rec>0?(fix+fv.fixa+dcfv.fixa)/rec*100:0,compVar=rec>0?(vari+fv.variavel+dcfv.variavel)/rec*100:0;
   const diag=[
     {label:'Taxa de Poupança',val:fmtPct(poup),ideal:'≥ 20%',ok:poup>=20,warn:poup>=10&&poup<20},
     {label:'Reserva de Emergência',val:mesesRes.toFixed(1)+' meses',ideal:'≥ 6 meses',ok:mesesRes>=6,warn:mesesRes>=3&&mesesRes<6},
@@ -1746,14 +1776,14 @@ function renderInteligencia(){
   if(!recs.length)recs.push({icon:'✅',txt:'Finanças equilibradas neste mês!',cls:'success'});
   document.getElementById('recomendacoes').innerHTML=recs.map(r=>`<div class="alert-box ${r.cls}">${r.icon} ${r.txt}</div>`).join('');
   let n50=rec*0.5,n30=rec*0.3,n20=rec*0.2;
-  const metodo=[{icon:'🏠',label:'Necessidades',val:fix+fat+fv.fixa,ideal:n50,cor:'var(--neg)',bg:'#fdecea'},{icon:'🎉',label:'Desejos',val:vari+fv.variavel,ideal:n30,cor:'var(--alert)',bg:'#fff8e6'},{icon:'💰',label:'Poupança',val:Math.max(result,0),ideal:n20,cor:'var(--pos)',bg:'#e8f8f0'}];
+  const metodo=[{icon:'🏠',label:'Necessidades',val:fix+fat+fv.fixa+dcfv.fixa,ideal:n50,cor:'var(--neg)',bg:'#fdecea'},{icon:'🎉',label:'Desejos',val:vari+fv.variavel+dcfv.variavel,ideal:n30,cor:'var(--alert)',bg:'#fff8e6'},{icon:'💰',label:'Poupança',val:Math.max(result,0),ideal:n20,cor:'var(--pos)',bg:'#e8f8f0'}];
   document.getElementById('metodo-502030').innerHTML=`<div class="grid3">${metodo.map(m=>`<div style="text-align:center;padding:16px;background:${m.bg};border-radius:10px"><div style="font-size:24px">${m.icon}</div><div style="font-weight:700;font-size:18px;color:${m.cor};margin:4px 0">${fmtBRL(m.val)}</div><div style="font-size:11px;color:#888">${m.label} (ideal: ${fmtBRL(m.ideal)})</div><div class="progress-wrap" style="margin-top:6px"><div class="progress-bar" style="width:${Math.min(m.val/Math.max(m.ideal,1)*100,100)}%;background:${m.val<=m.ideal?'var(--pos)':m.cor}"></div></div></div>`).join('')}</div>`;
   document.getElementById('sim-cat').innerHTML='<option value="">— Selecionar —</option>'+CATEGORIAS.map(c=>`<option>${c}</option>`).join('');
   renderMetas();
 }
 function simularESe(){
   let red=parseFloat(document.getElementById('sim-reducao').value)||0,extra=parseFloat(document.getElementById('sim-aporte-extra').value)||0;
-  let rec=calcRec(currentAno,currentMes),desp=calcFix(currentAno,currentMes)+calcVar(currentAno,currentMes)+calcFaturaTotal(currentAno,currentMes);
+  let rec=calcRec(currentAno,currentMes),desp=calcFix(currentAno,currentMes)+calcVar(currentAno,currentMes)+calcFaturaTotal(currentAno,currentMes)+calcDespesaCasaTotal(currentAno,currentMes);
   let rAtual=rec-desp,rNovo=rAtual+red-extra;
   document.getElementById('sim-ese-resultado').innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap"><div class="kpi"><div class="label">Resultado Atual</div><div class="val ${rAtual>=0?'pos':'neg'}">${fmtBRL(rAtual)}</div></div><div class="kpi"><div class="label">Resultado Projetado</div><div class="val ${rNovo>=0?'pos':'neg'}">${fmtBRL(rNovo)}</div></div><div class="kpi"><div class="label">Economia Anual</div><div class="val pos">${fmtBRL(red*12)}</div></div><div class="kpi"><div class="label">Em 10 anos*</div><div class="val pos">${fmtBRL(red*12*((Math.pow(1.008,120)-1)/0.008))}</div><div class="sub">*10% a.a.</div></div></div>`;
 }
