@@ -1231,18 +1231,28 @@ function sugerirCategoria(){
   }else{document.getElementById('sugestao-cat').style.display='none';}
 }
 function aplicarSugestao(cat){document.getElementById('l-cat').value=cat;document.getElementById('sugestao-cat').style.display='none';}
-// calculaMesRefFatura: aplica o dia de fechamento do cartão para decidir a
-// qual ciclo de fatura uma compra pertence — compras feitas após o
-// fechamento do mês caem na fatura do mês seguinte, mesmo sendo compras
-// "deste" mês calendário.
+// calcularMesRefFatura: mesRef representa o mês em que a fatura é PAGA
+// (vencimento), não o mês em que ela fecha. Primeiro acha o mês em que o
+// ciclo desta compra fecha (compras após o dia de fechamento caem no ciclo
+// que fecha no mês seguinte); depois, se o dia de vencimento é numericamente
+// menor ou igual ao dia de fechamento, isso indica que o vencimento cai no
+// mês seguinte ao fechamento (ex.: fecha dia 30, vence dia 5 do mês
+// seguinte), então a fatura é rotulada com mais um mês à frente. Ex.: cartão
+// fecha dia 30 e vence dia 5 — compra em 15/06 fecha em junho (30/06) e vence
+// em julho, então mesRef = julho.
 function calcularMesRefFatura(cartao,dataCompra){
-  let fechamento=cartao.fechamento||3;
-  let mesRef=mesK(dataCompra.getFullYear(),dataCompra.getMonth()+1);
+  let fechamento=cartao.fechamento||3,vencimento=cartao.vencimento||10;
+  let mesFechamento=mesK(dataCompra.getFullYear(),dataCompra.getMonth()+1);
   if(dataCompra.getDate()>fechamento){
     let prox=proxMes(dataCompra.getFullYear(),dataCompra.getMonth()+1);
-    mesRef=mesK(prox.a,prox.m);
+    mesFechamento=mesK(prox.a,prox.m);
   }
-  return mesRef;
+  if(vencimento<=fechamento){
+    let[anoFech,mesFechN]=mesFechamento.split('-').map(Number);
+    let prox=proxMes(anoFech,mesFechN);
+    return mesK(prox.a,prox.m);
+  }
+  return mesFechamento;
 }
 function salvarLancamento(){
   let cartId=document.getElementById('l-cartao').value,data=document.getElementById('l-data').value;
