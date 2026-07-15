@@ -1,0 +1,42 @@
+name: Publicar
+
+# Publica o site no Firebase Hosting a cada push na branch principal.
+#
+# Requer apenas UM secret no GitHub:
+#   FIREBASE_SERVICE_ACCOUNT  → conteúdo do JSON da conta de serviço
+#   (Firebase Console → Configurações do projeto → Contas de serviço →
+#   Gerar nova chave privada)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # botão "Run workflow" na aba Actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publicar
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    name: Publicar no Firebase Hosting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Publicar
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: financas-casal-9663e
+          channelId: live
+
+      - name: Endereço do sistema
+        run: |
+          echo "### Sistema publicado :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "https://financas-casal-9663e.web.app" >> $GITHUB_STEP_SUMMARY
