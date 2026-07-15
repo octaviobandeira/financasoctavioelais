@@ -38,4 +38,4 @@ jobs:
         run: |
           echo "### Sistema publicado :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "https://financas-casal-9663e.web.app" >> $GITHUB_STEP_SUMMARY
+          echo "https://financeiro-octavio-lais.web.app" >> $GITHUB_STEP_SUMMARY
